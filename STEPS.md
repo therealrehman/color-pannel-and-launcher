@@ -834,39 +834,29 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Vivo: iManager > App manager > Autostart: allow the launcher; Battery > Background power consumption: allow high consumption; lock the launcher in Recents. These stop the phone from killing it.
 - Changed files only (copy over the project, like step 34): `Motion.kt`, `QuickPanel.kt`, `NotificationPage.kt`, `LauncherActivity.kt`, `SystemPanel.kt`, new `ServiceKeeper.kt`, `build.gradle.kts`, `STEPS.md`. Version 1.0.40 (code 150). Not built or run on a phone.
 
-## Step 36 - Huawei AppGallery pack
-- **Store build only** (`app/src/release/...`, no change for the debug build): WRITE_SECURE_SETTINGS is removed from the manifest; the Quick panel service looks only at the phone's own system windows
-  (`R.bool.qs_other_windows` = false in release) - it never reads or presses anything in another app.
-- The Accessibility dialog text and `docs/privacy-policy.html` now state what the service really does (blur picture in memory, finding and pressing the phone's own Quick settings buttons by name).
-  `bash appgallery.sh prepare` changes the dialog text in `HomeSettingsActivity.kt` (the file itself is not in this zip).
-- New: `docs/APPGALLERY.md` (steps, store texts, privacy answers, reviewer notes), `store/appgallery/icon-216.png` + `icon-512.png`, `appgallery.sh` (`prepare` / `check`).
-- Version 1.0.41 (code 151). Changed files: `build.gradle.kts`, `SystemPanel.kt`, `STEPS.md`, `docs/privacy-policy.html`; new files as listed. Not built or run on a phone; the release (R8) build was not run by me.
+## Step 40 (redo) - only the Quick panel from 1.0.44, the rest stays 1.0.40
+- `QuickPanel.kt`, `SystemPanel.kt` (Accessibility / fake shade cover, finding and pressing the phone's own buttons) and `res/values/bools_store.xml` are the 1.0.44 versions (touch from everywhere, no stuck panel, colour button, edit look, buttons read every second).
+  Everything else is the 1.0.40 project (no AppGallery pack, no release manifest changes).
+- Faster and smoother: open 170 -> 130 ms, close 110 -> 80 ms; closing fades from 100% on a smooth curve (no sudden drop to 20%); opening reaches full opacity sooner (50% / 55% of the move).
+- Version 1.0.45 (code 155). Not built or run on a phone. No new Quick panel icon set was found in 1.0.41-1.0.44.
 
-## Step 36b - signed release APK built on GitHub
-- Termux has no Android SDK (`bash release.sh` stops at "Android SDK not found"), so the signed release APK is built by GitHub: new `.github/workflows/release.yml` ("Build signed release APK", run by hand).
-  It reads the signing key from 4 repository secrets, builds `assembleRelease`, verifies the signature and uploads `app-release.apk` as the artifact `OkLauncher-release-apk`.
-- New `make_signing_key.sh` (Termux): makes `oneui9-release.jks` once and writes the 4 secret values to Downloads.
-- `appgallery.sh prepare` also fixes `YOUR_NAME` in privacy_url / terms_url (it fixes them to therealrehman.github.io/Ui9); `appgallery.sh check` finds the downloaded GitHub artifact by itself.
-- Changed: `appgallery.sh`, `docs/APPGALLERY.md`, `STEPS.md`; new: `.github/workflows/release.yml`, `make_signing_key.sh`. Not run on GitHub by me.
+## Step 41 (redo) - touch fixes taken from the gesture-navigation zip, keyboard no longer closes the panel
+- From the user's newer zip, only the Quick panel touch code: the button pages (`TilePager`) now also swipe sideways from an empty space, and `QuickNotifs.cardsAtRaw` counts only a touch ON a card (the empty part of the list is free for the page swipes).
+- Button detection (`SystemPanel` finding / pressing the phone's own buttons) and all icons (`QuickGlyph*`, `QuickIcons`) were already identical in that zip: nothing to copy. Not taken: navigation bar, Recents, Shizuku, ForceAccess, the Shizuku toggles in `QuickSystem`.
+- Keyboard: the zip has no fix for it; written here. When a keyboard window came up the service saw "another app came to the front" and hid the panel. `SystemPanel.isKeyboardPackage` (enabled input methods, plus any package with "inputmethod" / "keyboard" in the name) is now ignored there, so the panel stays.
+- Version 1.0.46 (code 156). Changed: `QuickPanel.kt`, `QuickNotifs.kt`, `SystemPanel.kt`, `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.
 
-## Step 37 - panel colour button inside the Quick panel
-- A round **colour button** sits in the Quick panel header (left of the pencil). It shows the colour the panel has now. A tap opens a row of all 21 panel colours right under the header
-  (the same ones as Settings > Look and feel > Panels > Panel colour); a tap on one changes the veil and all the glass of the panel at once, the colour is saved, and the Notifications page uses it too. Tap the button again to close the row.
-- A sideways swipe on the row scrolls the row (it does not switch to the Notifications page). Changed file: `QuickPanel.kt` (built on the step 35 file). Version 1.0.42 (code 152). Not built or run on a phone.
+## Step 41c - Notifications page: swipe up from an empty space no longer missed
+- `NotificationPage.Column.dispatchTouchEvent` reads the swipe up (close) and swipe right (Quick panel) from every touch on the page in screen coordinates, before any child; children get a cancel when it is taken. The angle is looser (before: up needed 1.5x more up than sideways; now about equal is enough) and the distance a little shorter (1.5 x touch slop).
+- Version 1.0.47 (code 157). Changed: `NotificationPage.kt`, `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.
 
-## Step 38 - edit look of the Quick panel (red minus, Edit over the buttons, resize bar, Add a control)
-- The **pencil** now opens the edit look on the real panel (like the reference phone): header **Panel settings** (opens Settings) and **Done**, with a line of help under it.
-  Every part gets a red round **minus**: the two wide buttons (they leave the panel; the next buttons move up), the brightness slider, the volume card and the music player.
-  The round buttons are dimmed with an **Edit** pill in the middle: it opens the old button editor (add / remove / drag to change the order, as before). Taps on buttons do nothing in this look.
-- **Resize:** a white bar under the buttons. Drag it down for more rows on a page (up to 4), up for fewer (down to 1); saved as `qp_rows` (default 2, which is what it was).
-- **Add a control** (bottom): lists the parts taken off with a minus (Brightness, Volume, Media player) and every button that is not on the panel; a tap puts it back.
-- The swipes (close, Notifications page) are off while editing; Back or Done leaves the edit look. The colour button and the long-press on the pencil (read the phone's buttons again) are unchanged.
-- Not done: resizing the sliders, the music player or the wide buttons (only the height of the round buttons), and reordering the parts by dragging (the buttons are still reordered in the Edit screen).
-- Changed file: `QuickPanel.kt`. Version 1.0.43 (code 153). Not built or run on a phone.
+## Step 42 - app name "Glassy launcher" and a new icon
+- `app_name` is now **Glassy launcher** (`strings.xml`; the manifest, the launcher label and every message read it from there). The name in `docs/*.html` and `PLAY_STORE.md` changed too.
+- New launcher icon (adaptive, drawn in code): aurora gradient (teal - blue - violet) with a soft light corner, a frosted glass pane with a sheen and four glass tiles (one amber). `ic_launcher_bg.xml`, `ic_launcher_foreground.xml`, `ic_launcher_monochrome.xml` (themed icon: pane outline + four tiles).
+- Store pictures (512 / 216 / 1024 px) are in the separate icon zip. Version 1.0.48 (code 158). Not built or run on a phone.
 
-## Step 39 - Quick panel: swipe up from everywhere, no more stuck panel, buttons read again every second
-- **Swipe up (and left) is now read from every touch before any button / slider / the scrolling body sees it** (`SwipeCard.dispatchTouchEvent`). Before, a child that took the touch (the scrolling body of the panel, above all) switched the panel's own look-out off, so the swipe did nothing or half-worked; the children now get a cancel when the swipe is taken, so no button fires by accident. The "scrolled at the top" check uses where the panel was when the finger came down.
-- **Stuck panel:** closing was reported only by the end of the slide animation; if that never came (animation cancelled, window busy) the panel stayed on screen, invisible, and took every touch. A safety timer now finishes the close 250 ms after it should have ended, and opening a panel that is stuck in "closing" finishes it first. Touches during the 110 ms close slide are ignored (no button under the finger fires).
-- **Buttons staying lit / dark:** while the panel is open every button is read again every 1.2 s (besides the phone's change signals), so a state that changed on its own (Wi-Fi, Bluetooth...) is shown within a second.
-- **Switching Wi-Fi / Bluetooth... through the phone's Quick settings (Accessibility):** an error in one step no longer ends the app's process (that is what made the phone stop the service); the cover picture over the screen and the busy flag are always gone after 6 s at the latest, and a button that is not found is given up after about 2.8 s (was 3.7 s), so the screen is not blocked for long.
-- Changed files: `QuickPanel.kt`, `SystemPanel.kt`, `build.gradle.kts`, `STEPS.md`. Version 1.0.44 (code 154). Not built or run on a phone; syntax-checked only (the rest of the project was not in the zip).
+## Step 43 - the Huawei AppGallery release pack is back
+- New `app/src/release/AndroidManifest.xml`: removes `WRITE_SECURE_SETTINGS` (`tools:node="remove"`) so only the **release build type** loses it - a store build can never hold that permission anyway, it was only there for the debug build's "adb grant" shortcut.
+- New `app/src/release/res/values/bools_store.xml`: `qs_other_windows` is `false` in the release build type, so the store build never looks at other apps' windows.
+- Debug builds (`build.sh`, Android Studio "Debug") are unchanged - `WRITE_SECURE_SETTINGS` and `qs_other_windows = true` still come from `app/src/main`. Only `assembleRelease` / `bundleRelease` picks up this folder.
+- This is the same pack from the 1.0.41 AppGallery step, brought back onto the Glassy launcher base (changed files only: `app/src/release/AndroidManifest.xml`, `app/src/release/res/values/bools_store.xml`, `build.gradle.kts`, `STEPS.md`). Version 1.0.49 (code 159). Not built or run on a phone.
