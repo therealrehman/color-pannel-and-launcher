@@ -919,6 +919,7 @@ class QuickPanel(
     private fun chooseColour(i: Int) {
         context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.KEY, i).apply()
         PanelTheme.load(context)
+        PanelTheme.syncWallpaper(context, i) // wallpaper follows the panel colour, if that's turned on
         scrim.background = PanelTheme.scrim(205, PanelLook.dark)
         build() // every glass of the panel is drawn again in the new colour
     }
@@ -1250,8 +1251,8 @@ class QuickPanel(
                 val p = 1f - (card.translationY / (h0 * 0.35f)).coerceIn(0f, 1f)
                 // Step 33: top to bottom, opacity 0 -> 100 on a soft curve, the panel sharpening from a blur while it lands
                 // Step 35: fast, 0 -> 100 within the first 60% of the move
-                card.alpha = Motion.smooth(Motion.ramp(p, 0.6f))
-                scrim.alpha = Motion.smooth(Motion.ramp(p, 0.7f))
+                card.alpha = Motion.smooth(Motion.ramp(p, 0.5f))
+                scrim.alpha = Motion.smooth(Motion.ramp(p, 0.55f))
                 scrim.translationY = card.translationY
                 Motion.setBlur(card, Motion.BLUR_PX * (1f - Motion.ramp(p, 0.9f)))
             }
