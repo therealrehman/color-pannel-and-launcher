@@ -37,8 +37,10 @@ OUT="$DL/OkLauncher-github-secrets.txt"
   echo "RELEASE_KEY_ALIAS:oneui9"
   echo "RELEASE_KEYSTORE_B64:$(base64 -w0 "$KS")"
 } > "$OUT"
-echo
-echo "Done. Two files are now in your Downloads folder:"
-echo "  oneui9-release.jks            <- BACK THIS UP (cloud drive / another phone)"
-echo "  OkLauncher-github-secrets.txt <- open it, copy each value into GitHub; delete it afterwards"
-echo "Never post these files or their content anywhere, not even to me."
+if [ -z "$OK_SIGNING_AUTO" ]; then
+  echo
+  echo "Done. Two files are now in your Downloads folder:"
+  echo "  oneui9-release.jks            <- BACK THIS UP (cloud drive / another phone)"
+  echo "  OkLauncher-github-secrets.txt <- open it, copy each value into GitHub; delete it afterwards"
+  echo "Never post these files or their content anywhere, not even to me."
+fi

@@ -1,7 +1,9 @@
 name: Build signed release APK
 # Run it by hand: GitHub > Actions > "Build signed release APK" > Run workflow.
-# Needs four repository secrets (see docs/APPGALLERY.md, made by `bash make_signing_key.sh`):
+# It signs with YOUR key when the 4 repository secrets exist (set them once with `bash setup_signing.sh`, see SIGNING.md):
 #   RELEASE_KEYSTORE_B64, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+# When a secret is missing it does NOT stop any more: it makes a TEMPORARY key for this run only, so you still get an installable release
+# APK to test (R8 / shrunk build). That APK is named ...-TEMP-KEY and must never be published: every run makes a different key.
 on:
   workflow_dispatch:
 jobs:
@@ -15,26 +17,43 @@ jobs:
           java-version: '17'
       - name: Accept Android licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-      - name: Check the signing secrets
+      - name: Signing key (yours from the secrets, or a temporary one)
+        id: key
         env:
           KS: ${{ secrets.RELEASE_KEYSTORE_B64 }}
           SP: ${{ secrets.RELEASE_STORE_PASSWORD }}
           KA: ${{ secrets.RELEASE_KEY_ALIAS }}
           KP: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          for v in KS SP KA KP; do
-            if [ -z "${!v}" ]; then echo "::error::A signing secret is missing or empty ($v). Add the 4 secrets listed in docs/APPGALLERY.md."; exit 1; fi
-          done
-      - name: Decode the signing key
-        env:
-          KS: ${{ secrets.RELEASE_KEYSTORE_B64 }}
-        run: echo "$KS" | base64 -d > "$RUNNER_TEMP/oneui9-release.jks"
+          missing=""
+          [ -z "$KS" ] && missing="$missing RELEASE_KEYSTORE_B64"
+          [ -z "$SP" ] && missing="$missing RELEASE_STORE_PASSWORD"
+          [ -z "$KA" ] && missing="$missing RELEASE_KEY_ALIAS"
+          [ -z "$KP" ] && missing="$missing RELEASE_KEY_PASSWORD"
+          JKS="$RUNNER_TEMP/release-key.jks"
+          if [ -z "$missing" ]; then
+            echo "$KS" | base64 -d > "$JKS"
+            {
+              echo "RELEASE_STORE_FILE=$JKS"
+              echo "RELEASE_STORE_PASSWORD=$SP"
+              echo "RELEASE_KEY_ALIAS=$KA"
+              echo "RELEASE_KEY_PASSWORD=$KP"
+            } >> "$GITHUB_ENV"
+            echo "mode=real" >> "$GITHUB_OUTPUT"
+            echo "Signing with your key from the repository secrets."
+          else
+            keytool -genkeypair -keystore "$JKS" -alias temp -keyalg RSA -keysize 2048 -validity 3 \
+              -storepass temp-key-pass -keypass temp-key-pass -dname "CN=Temporary key, O=not for publishing, C=XX" > /dev/null 2>&1
+            {
+              echo "RELEASE_STORE_FILE=$JKS"
+              echo "RELEASE_STORE_PASSWORD=temp-key-pass"
+              echo "RELEASE_KEY_ALIAS=temp"
+              echo "RELEASE_KEY_PASSWORD=temp-key-pass"
+            } >> "$GITHUB_ENV"
+            echo "mode=temp" >> "$GITHUB_OUTPUT"
+            echo "::warning::These repository secrets are missing or empty:$missing. A TEMPORARY key is used for this run: the APK installs, but do NOT publish it. Run 'bash setup_signing.sh' in Termux once (see SIGNING.md), then run this workflow again."
+          fi
       - name: Build the signed release APK
-        env:
-          RELEASE_STORE_FILE: ${{ runner.temp }}/oneui9-release.jks
-          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon -Poneui.sdk=34
@@ -44,7 +63,20 @@ jobs:
           test -f "$APK" || { echo "::error::No signed APK was made (app-release.apk missing)."; ls app/build/outputs/apk/release; exit 1; }
           SIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -n 1)
           "$SIGNER" verify --print-certs "$APK"
+      - name: Summary
+        run: |
+          if [ "${{ steps.key.outputs.mode }}" = "real" ]; then
+            echo "### Signed with your key. This APK can go to the store." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### TEMPORARY key: test only, do NOT publish. Set the 4 secrets with \`bash setup_signing.sh\` (see SIGNING.md) and run again." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/upload-artifact@v4
+        if: steps.key.outputs.mode == 'real'
         with:
           name: OkLauncher-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+      - uses: actions/upload-artifact@v4
+        if: steps.key.outputs.mode != 'real'
+        with:
+          name: OkLauncher-release-apk-TEMP-KEY-do-not-publish
           path: app/build/outputs/apk/release/app-release.apk
