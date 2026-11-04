@@ -37,10 +37,8 @@ object Gradients {
         GradientDef("ember", "Ember", intArrayOf(rgb(0xFF, 0xD1, 0x4D), rgb(0xFF, 0x6A, 0x1F), rgb(0x9E, 0x1B, 0x32)), 110f)
     )
 
-    /** The gradient behind a saved number: 0 = none, 1.. = [all] in order. */
-    fun forIndex(index: Int): GradientDef? = all.getOrNull(index - 1)
 
-    /** Ten more panel gradients (own table, so the dock and the wallpapers do not change). Colours run from the first corner to the last. */
+    /** Step 25: ten more panel gradients (own table, so the dock and the wallpapers do not change). Colours run from the first corner to the last. */
     val panelExtra: List<GradientDef> = listOf(
         GradientDef("twilight", "Twilight", intArrayOf(rgb(0xFF, 0x9A, 0x8B), rgb(0x8E, 0x54, 0xE9), rgb(0x2B, 0x1B, 0x6B)), 120f),
         GradientDef("cherry", "Cherry", intArrayOf(rgb(0xFF, 0x5E, 0x7E), rgb(0xC2, 0x18, 0x5B), rgb(0x4A, 0x0A, 0x2E)), 120f),
@@ -54,17 +52,18 @@ object Gradients {
         GradientDef("dawn", "Dawn", intArrayOf(rgb(0xFF, 0xD8, 0xA8), rgb(0xFF, 0x8E, 0x9E), rgb(0x7A, 0x5C, 0xE6)), 130f)
     )
 
-    /** The white-glass panel colour as a wallpaper (soft silver-blue). */
+
+    /** Step 61: the white-glass panel colour as a wallpaper (soft silver-blue). */
     val frost = GradientDef("frost", "Frost", intArrayOf(rgb(0xF4, 0xF7, 0xFF), rgb(0xB9, 0xC6, 0xE4), rgb(0x6F, 0x7F, 0xA8)), 120f)
 
-    /** A solid panel colour as a wallpaper: a lighter top-left, the colour itself, a deeper bottom-right. */
+    /** Step 61: a solid panel colour as a wallpaper: a lighter top-left, the colour itself, a deeper bottom-right. */
     fun solidWallpaper(name: String, base: Int): GradientDef {
         fun mix(c: Int, t: Int, f: Float) = (c + (t - c) * f).toInt()
         fun shade(f: Float, t: Int) = rgb(mix(Color.red(base), t, f), mix(Color.green(base), t, f), mix(Color.blue(base), t, f))
         return GradientDef("solid_" + name.lowercase(), name, intArrayOf(shade(0.35f, 255), base, shade(0.55f, 0)), 120f)
     }
 
-    /** The wallpaper page list: the 12 dock / wallpaper gradients, the 10 extra panel gradients, the panel's solid colours and frost. */
+    /** Step 61: the wallpaper page list: the 12 dock / wallpaper gradients, the 10 extra panel gradients, the panel's solid colours and frost. */
     val wallpapers: List<GradientDef> by lazy {
         all + panelExtra +
             listOf(
@@ -72,6 +71,9 @@ object Gradients {
                 solidWallpaper("Red", rgb(150, 38, 58)), solidWallpaper("Graphite", rgb(40, 44, 52)), frost
             )
     }
+
+    /** The gradient behind a saved number: 0 = none, 1.. = [all] in order. */
+    fun forIndex(index: Int): GradientDef? = all.getOrNull(index - 1)
 
     /** [colors] with transparency [alpha] (0..255), for the dock. */
     fun withAlpha(colors: IntArray, alpha: Int): IntArray =

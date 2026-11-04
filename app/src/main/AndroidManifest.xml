@@ -24,6 +24,15 @@
     <!-- Step 26: shows whether NFC is on (the button itself is switched by the Quick panel service). -->
     <uses-permission android:name="android.permission.NFC" />
 
+    <!-- Step 50 (Huawei plan, step 1): the Quick panel over other apps WITHOUT the Accessibility service. "Draw over other apps" lets the panel
+         window show above the app you are in; a small foreground service keeps it ready and its notification opens it. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Step 7 (Huawei plan): start the Quick panel service again after the phone restarts. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Android 11+ hides other apps unless declared. These let the launcher see every
          launchable app plus the default Phone / Messages / Browser / Camera / Settings. -->
     <queries>
@@ -48,6 +57,10 @@
         </intent>
         <intent>
             <action android:name="android.settings.SETTINGS" />
+        </intent>
+        <!-- Step 60: lets the launcher see which apps offer Quick Settings tiles, only to list them as optional "Phone buttons" (no QUERY_ALL_PACKAGES). -->
+        <intent>
+            <action android:name="android.service.quicksettings.action.QS_TILE" />
         </intent>
         <!-- Step 6: lets the launcher see the apps that offer widgets (even ones with no launcher icon). -->
         <intent>
@@ -122,7 +135,32 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Step 52 (Huawei plan, step 3): long-press the app icon: Quick panel / Notifications. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
+
+        <!-- Step 52: the invisible screen the Quick Settings tile and the App shortcuts start; it opens the Quick panel. -->
+        <activity
+            android:name=".PanelShortcutActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Step 52: the "Quick panel" tile for the phone's Quick Settings. -->
+        <service
+            android:name=".PanelTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_panel"
+            android:label="Quick panel"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <!-- Step 6c1: the launcher's own widgets. They show up in the widget picker like any other app's widgets. -->
         <receiver
@@ -200,6 +238,27 @@
                 android:resource="@xml/lock_admin" />
             <intent-filter>
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Step 50: the Quick panel over other apps without Accessibility (Settings > Quick panel > Quick panel over other apps). -->
+        <service
+            android:name=".PanelOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the Quick panel window ready to open over other apps" />
+        </service>
+
+        <!-- Step 7: starts the Quick panel service again after a restart / an update / a keep-alive alarm. It only calls OverlayPanel.sync(). -->
+        <receiver
+            android:name=".KeepAliveReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 

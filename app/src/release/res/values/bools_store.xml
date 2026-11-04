@@ -2,4 +2,7 @@
 <resources>
     <!-- Step 36: the store build never looks at other apps' windows. -->
     <bool name="qs_other_windows">false</bool>
+    <!-- Color Panel: the release build KEEPS the Accessibility service (store_no_accessibility = false).
+         The Accessibility service is this app's main feature. -->
+    <bool name="store_no_accessibility">false</bool>
 </resources>

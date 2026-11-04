@@ -12,41 +12,10 @@ import android.graphics.drawable.GradientDrawable
  * Step 25: 11-20 = ten more gradients, made for the panel ([extra]). Saved numbers 0-10 keep their old meaning.
  */
 object PanelTheme {
-
-    const val KEY = "qp_theme"
-    const val COUNT = 21
-    const val KEY_WP_FOLLOW = "qp_wp_follow" // default ON
+    const val KEY_WP_FOLLOW = "qp_wp_follow" // Step 62b: default ON
     const val KEY_WP_TARGET = "qp_wp_target" // 0 Home, 1 Lock, 2 Both
 
-    private class Solid(val name: String, val rgb: Int)
-
-    private val solids = listOf(
-        Solid("Blue", Color.rgb(34, 62, 150)),
-        Solid("Purple", Color.rgb(84, 44, 140)),
-        Solid("Green", Color.rgb(20, 100, 78)),
-        Solid("Red", Color.rgb(150, 38, 58)),
-        Solid("Graphite", Color.rgb(40, 44, 52))
-    )
-
-    /** All panel gradients, in the order of their saved numbers: the first five of [Gradients], then [Gradients.panelExtra]. */
-    private val grads: List<GradientDef> = Gradients.all.take(5) + Gradients.panelExtra
-
-    private var index = 0
-
-    fun load(context: Context) {
-        index = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY, 0).coerceIn(0, COUNT - 1)
-    }
-
-    fun saved(context: Context): Int = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY, 0).coerceIn(0, COUNT - 1)
-
-    /** The wallpaper that matches panel colour number [i] (white glass -> a soft frost; solids -> light-to-dark shades; gradients -> the same gradient). */
-    fun wallpaperFor(i: Int): GradientDef = when {
-        i <= 0 -> Gradients.frost
-        i <= solids.size -> Gradients.solidWallpaper(solids[i - 1].name, solids[i - 1].rgb)
-        else -> grads[i - solids.size - 1]
-    }
-
-    /** Puts the wallpaper of panel colour [index] on the phone (portrait size, Home / Lock / Both as saved). Runs in the background; [done] gets the message. */
+    /** Step 62b: puts the wallpaper of panel colour [index] on the phone (portrait size, Home / Lock / Both as saved). Runs in the background; [done] gets the message. */
     fun setWallpaper(context: Context, index: Int, done: (String) -> Unit = {}) {
         val app = context.applicationContext
         val target = app.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY_WP_TARGET, 2)
@@ -76,11 +45,42 @@ object PanelTheme {
         }.start()
     }
 
-    /** Called after a panel colour pick: sets the matching wallpaper when "Wallpaper follows the panel colour" is on (it is by default). */
+    /** Step 62b: called after a panel colour pick: sets the matching wallpaper when "Wallpaper follows the panel colour" is on (it is by default). */
     fun syncWallpaper(context: Context, index: Int) {
         if (!context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(KEY_WP_FOLLOW, true)) return
         setWallpaper(context, index) { android.widget.Toast.makeText(context.applicationContext, it, android.widget.Toast.LENGTH_SHORT).show() }
     }
+
+    const val KEY = "qp_theme"
+    const val COUNT = 21
+
+    private class Solid(val name: String, val rgb: Int)
+
+    private val solids = listOf(
+        Solid("Blue", Color.rgb(34, 62, 150)),
+        Solid("Purple", Color.rgb(84, 44, 140)),
+        Solid("Green", Color.rgb(20, 100, 78)),
+        Solid("Red", Color.rgb(150, 38, 58)),
+        Solid("Graphite", Color.rgb(40, 44, 52))
+    )
+
+    /** All panel gradients, in the order of their saved numbers: the first five of [Gradients], then [extra]. */
+    private val grads: List<GradientDef> = Gradients.all.take(5) + Gradients.panelExtra
+
+    private var index = 0
+
+    /** Step 61: the wallpaper that matches panel colour number [i] (white glass -> a soft frost; solids -> light-to-dark shades; gradients -> the same gradient). */
+    fun wallpaperFor(i: Int): GradientDef = when {
+        i <= 0 -> Gradients.frost
+        i <= solids.size -> Gradients.solidWallpaper(solids[i - 1].name, solids[i - 1].rgb)
+        else -> grads[i - solids.size - 1]
+    }
+
+    fun load(context: Context) {
+        index = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY, 0).coerceIn(0, COUNT - 1)
+    }
+
+    fun saved(context: Context): Int = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY, 0).coerceIn(0, COUNT - 1)
 
     fun name(i: Int): String = when {
         i == 0 -> "White glass"
@@ -120,9 +120,11 @@ object PanelTheme {
      */
     const val BACK_OPACITY = 255
 
-    /** The veil behind the panel (solid, see [BACK_OPACITY]). */
-    @Suppress("UNUSED_PARAMETER")
+    /** The veil behind the panel: solid (see [BACK_OPACITY]) for any [strength] above 0, nothing for 0 (the space above a bottom sheet). */
     fun scrim(strength: Int, dark: Boolean): Drawable {
+        // Step 68: strength 0 = no veil at all. Steps 64-67 asked for a transparent space above the bottom sheet (scrimA(0)), but this function ignored
+        // [strength] and always returned the solid veil, so the space stayed coloured. Any positive strength still gives the solid veil as before.
+        if (strength <= 0) return ColorDrawable(Color.TRANSPARENT)
         val base = baseRgb() ?: return ColorDrawable(PanelLook.veil(BACK_OPACITY))
         val a = BACK_OPACITY
         if (index > solids.size) {
@@ -135,6 +137,19 @@ object PanelTheme {
         }
         val c = forMode(base, dark)
         return ColorDrawable(Color.argb(a, Color.red(c), Color.green(c), Color.blue(c)))
+    }
+
+    /**
+     * Step 58: the colour(s) of the Quick panel as the top handle shows them ("Same as the Quick panel"): one colour for white glass or a plain colour,
+     * three colours (first corner to last) for a gradient panel. Read from the saved setting, so it follows a change at once.
+     */
+    fun stripColors(context: Context, dark: Boolean): IntArray {
+        val i = saved(context)
+        return when {
+            i == 0 -> intArrayOf(if (dark) Color.rgb(236, 238, 246) else Color.rgb(60, 64, 76))
+            i <= solids.size -> intArrayOf(solids[i - 1].rgb)
+            else -> grads[i - solids.size - 1].colors.copyOf()
+        }
     }
 
     /** The round swatch shown in Settings for number [i]. */

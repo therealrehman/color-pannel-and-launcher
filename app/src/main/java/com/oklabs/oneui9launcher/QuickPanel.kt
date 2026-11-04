@@ -42,6 +42,9 @@ private const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
 private const val HIDE_BRIGHT = "qp_hide_bright" // Step 38: parts of the panel taken off with the red minus
 private const val HIDE_VOLUME = "qp_hide_volume"
 private const val HIDE_MEDIA = "qp_hide_media"
+
+/** Step 64: true (default) = the Quick panel slides up from the bottom as a sheet; false = the old full-height panel from the top. */
+const val PREF_SHEET = "qp_sheet"
 private const val KEY_ROWS = "qp_rows" // Step 38: rows of round buttons on a page (1-4)
 
 /**
@@ -245,7 +248,26 @@ class TilePager(context: Context, private val pages: List<View>) : FrameLayout(c
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         if (!multi) return false
-        if (!dragging) return ev.actionMasked == MotionEvent.ACTION_DOWN // tap on empty space: keep the gesture
+        if (!dragging) {
+            // Step 40: a touch that starts on an EMPTY space of the box has no child to take it, so it comes straight here and onInterceptTouchEvent
+            // is never asked again: the sideways drag has to be recognised here too (before, swiping the pages from an empty space did nothing).
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    settle?.cancel()
+                    downX = ev.x
+                    downY = ev.y
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = ev.x - downX
+                    val dy = ev.y - downY
+                    if (abs(dx) > slop && abs(dx) > abs(dy) * 1.2f) {
+                        beginDrag(ev)
+                        return true
+                    }
+                }
+            }
+            return ev.actionMasked == MotionEvent.ACTION_DOWN // tap on empty space: keep the gesture
+        }
         velocity?.addMovement(ev)
         when (ev.actionMasked) {
             MotionEvent.ACTION_MOVE -> place(ev.x - downX)
@@ -360,6 +382,7 @@ class QuickPanel(
     private val body = CappedScrollView(context)
     private val tiles = ArrayList<Pair<String, TileView>>()
     private var slider: PillSlider? = null
+    private var sOnSlider = false // Step 61: the current touch began on a slider (brightness or volume)
     private var tilePager: TilePager? = null
     private var colourStrip: View? = null // Step 37: the row of panel colours under the header
     private var colourOpen = false
@@ -373,39 +396,83 @@ class QuickPanel(
     private var notifsWatching = false
     private val notifsListener: () -> Unit = { notifs?.bind() }
     private var insetTop = 0
+    private var insetBottom = 0
+
+    /** Step 64: true = the panel is a sheet that slides up from the bottom (default); false = the old full-height panel from the top. */
+    private var sheetMode = false
+
+    /** Step 65: the host (the overlay opened from the strip) allows the bottom sheet; the Home screen's own panel never is one. */
+    var sheetAllowed = false
+    private val pillHolder = FrameLayout(context)
+    private fun sgn(): Float = if (sheetMode) 1f else -1f
+    private fun trackY(rawY: Float): Float = if (sheetMode) -rawY else rawY
+    private fun closeDy(rawY: Float): Float = if (sheetMode) rawY - sDownY else sDownY - rawY
+    private fun atCloseEdge(): Boolean = if (sheetMode) !body.canScrollVertically(-1) else !body.canScrollVertically(1)
+    private fun scrimA(a: Int): Int = if (sheetMode) 0 else a // Step 65: the space above the sheet is transparent
     private var closing = false
     private var receiverOn = false
     private val handler = Handler(Looper.getMainLooper())
 
     private val swipeSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private val closeSwipe = context.dp(84) // only for a panel that scrolls: a swipe up that began at its top needs this much (x1.5) before it closes
+    private val sideSwipe = context.dp(72) // Step 58: a real swipe to the Notifications page, not a light touch
+    private val density = context.resources.displayMetrics.density
     private var sDownX = 0f
     private var sDownY = 0f
     private var sDownScroll = 0
     private var swiped = false
+    private var dragging = false // Step 59: the panel follows the finger up
+    private var dragBase = 0f
+    private var sListBlocks = false // the finger came down on a notification list that can still scroll down
+    private val tracker = FlingTracker()
+
+    /** How far the closing slide goes (the same as before: a third of the panel and a bit). */
+    private fun closeTravel(): Float = card.height * 0.35f + context.dp(24)
 
     /**
      * Step 32: the swipe up (close) and swipe left (Notifications) are read from raw positions and from ANY touch on the panel, also on
-     * empty spaces and beside the buttons (before, only touches that started on a button or a card were read). True = the swipe was taken.
+     * empty spaces and beside the buttons. True = the touch was taken.
+     * Step 59: the swipe up no longer closes at once. After about 18 dp the panel FOLLOWS the finger (fading), and when the finger lifts the
+     * distance (80 dp) or the speed of a flick decides: close with a normal glide, or glide back.
      */
     private fun swipeEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                if (!closing && card.translationY != 0f) {
+                    card.animate().cancel() // a new touch while the panel was still gliding back
+                    resetDragLook()
+                }
                 sDownX = ev.rawX
                 sDownY = ev.rawY
                 sDownScroll = body.scrollY // Step 39: where the panel was scrolled when the finger came down
                 swiped = false
+                dragging = false
+                sListBlocks = (if (sheetMode) notifs?.blocksSwipeDownAtRaw(sDownX, sDownY) else notifs?.blocksSwipeUpAtRaw(sDownX, sDownY)) ?: false
+                sOnSlider = (slider?.let { insideRaw(it, sDownX, sDownY) } ?: false) || (cards?.sliderAtRaw(sDownX, sDownY) ?: false) // Step 61
+                tracker.clear()
+                tracker.add(ev.eventTime, trackY(ev.rawY))
             }
             MotionEvent.ACTION_MOVE -> {
-                if (swiped) return true
-                val slop = swipeSlop
-                val dy = sDownY - ev.rawY
-                if (editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && !(notifs?.scrollsAtRaw(sDownX, sDownY) ?: false) && dy > slop * 2 && dy > abs(ev.rawX - sDownX) * 1.2f && (!body.canScrollVertically(1) || sDownScroll == 0 && dy > slop * 6)) {
-                    swiped = true
-                    close(true)
+                tracker.add(ev.eventTime, trackY(ev.rawY))
+                if (dragging) {
+                    dragTo(closeDy(ev.rawY))
                     return true
                 }
+                if (swiped) return true
+                val dy = closeDy(ev.rawY)
                 val dx = ev.rawX - sDownX
-                if (editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && dx < -slop * 3f && -dx > abs(ev.rawY - sDownY) * 2f &&
+                val free = editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && cards?.anySliderDragging() != true
+                if (free && !sListBlocks && PanelSwipe.startsDrag(dx, dy, density) &&
+                    (atCloseEdge() || (!sheetMode && sDownScroll == 0 && dy > closeSwipe * 3 / 2))
+                ) {
+                    swiped = true
+                    dragging = true
+                    dragBase = dy
+                    card.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                    dragTo(dy)
+                    return true
+                }
+                if (free && !sOnSlider && dx < -sideSwipe.toFloat() && -dx > abs(ev.rawY - sDownY) * 2f &&
                     !(notifs?.cardsAtRaw(sDownX, sDownY) ?: false) &&
                     !(tilePager?.let { it.multi && it.containsRaw(sDownX, sDownY) } ?: false) &&
                     !(colourStrip?.let { insideRaw(it, sDownX, sDownY) } ?: false)
@@ -415,13 +482,56 @@ class QuickPanel(
                     return true
                 }
             }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragging) {
+                dragging = false
+                tracker.add(ev.eventTime, trackY(ev.rawY))
+                val dy = closeDy(ev.rawY)
+                if (ev.actionMasked == MotionEvent.ACTION_UP && PanelSwipe.shouldClose(dy, tracker.velocity(), density)) close(true, fromDrag = true) else springBack()
+                return true
+            }
         }
         return false
     }
 
+    /** Step 59: the panel (and its veil) follow the finger [dy] pixels up from where the finger came down; [dragBase] is the part before it started. */
+    private fun dragTo(dy: Float) {
+        val d = (dy - dragBase).coerceAtLeast(0f)
+        val q = (d / closeTravel()).coerceIn(0f, 1f)
+        card.translationY = sgn() * d
+        card.alpha = Motion.fadeOut(q)
+        scrim.alpha = Motion.fadeOut(q)
+        scrim.translationY = card.translationY
+    }
+
+    /** The finger let go too early: the panel glides back to its place. */
+    private fun springBack() {
+        card.animate().cancel()
+        card.animate().translationY(0f).setDuration(PanelSwipe.BACK_MS).setInterpolator(PanelSwipe.GLIDE)
+            .setUpdateListener {
+                val q = (abs(card.translationY) / closeTravel()).coerceIn(0f, 1f)
+                card.alpha = Motion.fadeOut(q)
+                scrim.alpha = Motion.fadeOut(q)
+                scrim.translationY = card.translationY
+            }
+            .withEndAction { resetDragLook() }
+            .start()
+    }
+
+    /** Everything a drag or a glide may have left on the panel is put back. */
+    private fun resetDragLook() {
+        card.animate().setUpdateListener(null)
+        card.setLayerType(View.LAYER_TYPE_NONE, null)
+        Motion.setBlur(card, 0f)
+        card.alpha = 1f
+        card.translationY = 0f
+        scrim.alpha = 1f
+        scrim.translationY = 0f
+    }
+
     /** Closing after a swipe up. */
     private inner class SwipeCard(context: Context) : LinearLayout(context) {
-        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = swipeEvent(ev)
+        // The swipe is read in dispatchTouchEvent, before any child (see below), so nothing is read twice here.
+        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = false
 
         /**
          * Step 39: the swipe is read from EVERY touch before any child sees it. A child that takes the touch for itself (the scrolling panel body,
@@ -443,11 +553,8 @@ class QuickPanel(
             return super.dispatchTouchEvent(ev)
         }
 
-        // a touch that starts on an empty space ends up here (no child took it), so the swipe is read here too
-        override fun onTouchEvent(event: MotionEvent): Boolean {
-            swipeEvent(event)
-            return true
-        }
+        // a touch that starts on an empty space ends up here (no child took it): taken, so the rest of the touch comes here too
+        override fun onTouchEvent(event: MotionEvent): Boolean = true
     }
 
     private val receiver = object : BroadcastReceiver() {
@@ -473,7 +580,7 @@ class QuickPanel(
     init {
         visibility = View.GONE
 
-        scrim.background = PanelTheme.scrim(150, PanelLook.dark)
+        scrim.background = PanelTheme.scrim(scrimA(150), PanelLook.dark)
         scrim.isClickable = true
         scrim.setOnClickListener { close(true) }
         scrim.setOnTouchListener { _, ev -> closing || swipeEvent(ev) || (swiped && ev.actionMasked != MotionEvent.ACTION_DOWN) } // Step 32: swipe beside the buttons works too
@@ -490,13 +597,67 @@ class QuickPanel(
         // Step 20: the panel is as tall as the screen; its lower area (player + notifications) takes the space that is left.
         body.isFillViewport = true
         card.addView(body, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        // Step 65: a small grab pill in the transparent space above the sheet (only shown for the bottom sheet)
+        val pillView = View(context)
+        pillView.background = GradientDrawable().apply {
+            setColor(Color.argb(220, 255, 255, 255))
+            cornerRadius = context.dpf(3f)
+        }
+        pillHolder.addView(pillView, FrameLayout.LayoutParams(context.dp(48), context.dp(5), Gravity.CENTER))
+        pillHolder.visibility = View.GONE
+        card.addView(pillHolder, 0, LinearLayout.LayoutParams(MATCH, context.dp(26)))
         addView(card, LayoutParams(width, MATCH, Gravity.TOP or Gravity.CENTER_HORIZONTAL))
         setInsets(0)
+    }
+
+    /** Step 64: reads Settings > Quick panel > Panel style and puts the card on the bottom (sheet) or the top (full height). */
+    private fun applyStyle() {
+        sheetMode = sheetAllowed && context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(PREF_SHEET, true)
+        val lp = card.layoutParams as LayoutParams
+        val bp = body.layoutParams as LinearLayout.LayoutParams
+        if (sheetMode) {
+            // Step 70: a fixed height, the same as the Notifications sheet (the pill above it is 26 dp more); a taller panel scrolls inside
+            lp.height = context.sheetHeightPx() + context.dp(26)
+            lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            bp.height = 0
+            bp.weight = 1f
+            val r = context.dpf(28f)
+            card.background = null
+            body.background = PanelTheme.scrim(240, PanelLook.dark) // only the sheet itself is coloured; the card above it (the pill) stays transparent
+            body.outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: android.graphics.Outline) {
+                    outline.setRoundRect(0, 0, view.width, (view.height + r).toInt(), r)
+                }
+            }
+            body.clipToOutline = true
+            pillHolder.visibility = View.VISIBLE
+        } else {
+            lp.height = MATCH
+            lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            bp.height = 0
+            bp.weight = 1f
+            card.background = null
+            body.background = null
+            body.clipToOutline = false
+            pillHolder.visibility = View.GONE
+        }
+        card.layoutParams = lp
+        body.layoutParams = bp
+        setInsets(insetTop, insetBottom)
     }
 
     /** The status bar height, so the clock sits below it. */
     fun setInsets(top: Int, bottom: Int = 0) {
         insetTop = top
+        insetBottom = bottom
+        if (sheetMode) {
+            // Step 64/65: a sheet: only as tall as its content (at most 80% of the screen) on the bottom edge; the padding is inside the coloured body
+            card.setPadding(0, 0, 0, 0)
+            content.setPadding(context.dp(18), context.dp(16), context.dp(18), bottom + context.dp(12))
+            body.maxPx = ((context.resources.displayMetrics.heightPixels * 0.80f).toInt() - bottom - context.dp(54)).coerceAtLeast(context.dp(200))
+            return
+        }
+        content.setPadding(0, 0, 0, 0)
         // Step 22a: the panel ends right above the navigation bar (no empty strip under it).
         card.setPadding(context.dp(18), top + context.dp(12), context.dp(18), bottom + context.dp(10))
         // the panel never grows past the screen: below this it scrolls
@@ -527,15 +688,15 @@ class QuickPanel(
         wideRow.orientation = LinearLayout.HORIZONTAL
         for ((i, def) in order.take(2).withIndex()) {
             val tile = TileView(c, def, wide = true)
-            val lp = LinearLayout.LayoutParams(0, c.dp(62), 1f)
+            val lp = LinearLayout.LayoutParams(0, QuickSize.dp(c, 62, QuickSize.WIDE), 1f)
             if (i == 0) lp.rightMargin = c.dp(5) else lp.leftMargin = c.dp(5)
             wideRow.addView(if (layoutEdit) minus(tile, true) { removeTile(def.id) } else tile, lp)
             tiles.add(Pair(def.id, tile))
             if (!layoutEdit) wire(def.id, tile)
         }
-        val wideParams = LinearLayout.LayoutParams(MATCH, WRAP)
+        val wideParams = rowLp(QuickSize.WIDE)
         wideParams.topMargin = c.dp(14)
-        content.addView(wideRow, wideParams)
+        content.addView(if (layoutEdit) resizable(wideRow, QuickSize.WIDE, true) else wideRow, wideParams)
 
         // The rest: round buttons, four to a row, eight to a page, all inside ONE dark frosted rectangle (like the reference phone).
         // Step 26b: more than one page = drag left / right, the pages loop.
@@ -591,7 +752,7 @@ class QuickPanel(
                 val edit = pill("Edit", 18f)
                 edit.setOnClickListener { startEdit() }
                 frame.addView(edit, FrameLayout.LayoutParams(WRAP, WRAP, Gravity.CENTER))
-                content.addView(frame, gp)
+                content.addView(resizable(frame, QuickSize.BUTTON, false), gp)
                 content.addView(resizeBar(rowsPerPage), LinearLayout.LayoutParams(MATCH, c.dp(34)))
             } else {
                 content.addView(pager, gp)
@@ -611,9 +772,9 @@ class QuickPanel(
         if (cardsOn && !isHidden(HIDE_VOLUME)) {
             val k = QuickCards(c, { Toast.makeText(c, it, Toast.LENGTH_SHORT).show() }) { close(false) }
             cards = k
-            val kp = LinearLayout.LayoutParams(MATCH, WRAP)
+            val kp = rowLp(QuickSize.SLIDER)
             kp.topMargin = c.dp(14)
-            content.addView(if (layoutEdit) minus(k, true) { setHidden(HIDE_VOLUME, true) } else k, kp)
+            content.addView(if (layoutEdit) resizable(minus(k, true) { setHidden(HIDE_VOLUME, true) }, QuickSize.SLIDER, true) else k, kp)
             if (isOpen) k.start() // the panel is already showing (back from the editor)
         }
         val lower = LinearLayout(c)
@@ -661,6 +822,15 @@ class QuickPanel(
             addLp.gravity = Gravity.CENTER_HORIZONTAL
             addLp.topMargin = c.dp(10)
             content.addView(add, addLp)
+            val reset = pill("Reset sizes", 14f)
+            reset.setOnClickListener {
+                QuickSize.reset(c)
+                build()
+            }
+            val resetLp = LinearLayout.LayoutParams(WRAP, WRAP)
+            resetLp.gravity = Gravity.CENTER_HORIZONTAL
+            resetLp.topMargin = c.dp(8)
+            content.addView(reset, resetLp)
         }
 
         // A little grab bar: it says "swipe up to close".
@@ -702,14 +872,14 @@ class QuickPanel(
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
-        row.addView(bright, LinearLayout.LayoutParams(0, c.dp(PillSlider.HEIGHT_DP), 1f))
+        row.addView(bright, LinearLayout.LayoutParams(0, QuickSize.dp(c, PillSlider.HEIGHT_DP, QuickSize.SLIDER), 1f))
         val moon = roundGlyphButton(c, QuickGlyph(c, QuickGlyph.DARK), "Display and dark mode settings") { openDisplaySettings() }
-        val moonLp = LinearLayout.LayoutParams(c.dp(PillSlider.HEIGHT_DP), c.dp(PillSlider.HEIGHT_DP))
+        val moonLp = LinearLayout.LayoutParams(QuickSize.dp(c, PillSlider.HEIGHT_DP, QuickSize.SLIDER), QuickSize.dp(c, PillSlider.HEIGHT_DP, QuickSize.SLIDER))
         moonLp.leftMargin = c.dp(10)
         row.addView(moon, moonLp)
-        val bp = LinearLayout.LayoutParams(MATCH, WRAP)
+        val bp = rowLp(QuickSize.SLIDER)
         bp.topMargin = c.dp(topMarginDp)
-        content.addView(if (layoutEdit) minus(row, true) { setHidden(HIDE_BRIGHT, true) } else row, bp)
+        content.addView(if (layoutEdit) resizable(minus(row, true) { setHidden(HIDE_BRIGHT, true) }, QuickSize.SLIDER, true) else row, bp)
     }
 
     /** The power icon in the header: locks the screen (the phone's power menu is not open to launchers). Needs "Double-tap to lock" to be allowed once. */
@@ -813,12 +983,32 @@ class QuickPanel(
     }
 
     /**
+     * Step 78: the first time the panel opens, the phone's own buttons (Quick Settings tiles of apps) are put on it by themselves.
+     * No Accessibility: it only uses the package list and the tile list the phone shares (see [PhoneButtons.autoAddOnce]). Runs once.
+     */
+    private fun autoAddPhoneButtons() {
+        val names = try {
+            PhoneButtons.autoAddOnce(context)
+        } catch (e: Exception) {
+            emptyList<String>()
+        }
+        if (names.isEmpty()) return
+        handler.postDelayed({
+            val more = if (names.size > 4) "..." else ""
+            val plural = if (names.size == 1) "" else "s"
+            Toast.makeText(context, "Added " + names.size + " button" + plural + " from your phone: " + names.take(4).joinToString(", ") + more, Toast.LENGTH_LONG).show()
+        }, 700L)
+    }
+
+    /**
      * Step 27: reads the phone's own Quick settings once (hidden behind a picture) and adds every button the launcher has no button for
      * (Speed up, Record screen, vivoshare...). [again]: long-press on the pencil reads it again.
      */
     private fun maybeScan(again: Boolean = false) {
+        if (StoreBuild.noAccessibility(context)) return // Step 8: the store build never uses the Accessibility service
         val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
         if (!again) {
+            if (!SystemPanel.wanted(context)) return // Step 50: Accessibility is not used, so there is nothing to read and nothing to complain about
             if (prefs.getBoolean("qp_scanned", false)) return
             if (prefs.getInt("qp_scan_tries", 0) >= 4) return // after four empty tries only the long-press on the pencil reads again
         }
@@ -919,8 +1109,10 @@ class QuickPanel(
     private fun chooseColour(i: Int) {
         context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.KEY, i).apply()
         PanelTheme.load(context)
-        PanelTheme.syncWallpaper(context, i) // wallpaper follows the panel colour, if that's turned on
-        scrim.background = PanelTheme.scrim(205, PanelLook.dark)
+        PanelTheme.syncWallpaper(context, i) // Step 62b
+        scrim.background = PanelTheme.scrim(scrimA(205), PanelLook.dark)
+        // Step 70: the sheet itself is coloured by `body`, which only applyStyle set, so a new colour showed on the buttons but not on the sheet until the next open
+        if (sheetMode) body.background = PanelTheme.scrim(240, PanelLook.dark)
         build() // every glass of the panel is drawn again in the new colour
     }
 
@@ -928,7 +1120,7 @@ class QuickPanel(
 
     private fun uiPrefs() = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 
-    private fun isHidden(key: String): Boolean = uiPrefs().getBoolean(key, false)
+    private fun isHidden(key: String): Boolean = uiPrefs().getBoolean(key, key == HIDE_MEDIA) // Step 63: the music player is off until the user adds it back
 
     private fun setHidden(key: String, hidden: Boolean) {
         uiPrefs().edit().putBoolean(key, hidden).apply()
@@ -966,6 +1158,100 @@ class QuickPanel(
     }
 
     /** [view] with a red round minus at its top-left corner; the minus calls [onRemove]. [outside]: the minus sticks out over the corner. */
+    /** Row width: the full row, or narrower (centred) when the part was made narrower with its drag handle. */
+    private fun rowLp(part: String): LinearLayout.LayoutParams {
+        val c = context
+        val avail = min(c.resources.displayMetrics.widthPixels, c.dp(MAX_WIDTH_DP)) - c.dp(36)
+        val lp = if (QuickSize.wpct(c, part) >= 100) LinearLayout.LayoutParams(MATCH, WRAP) else LinearLayout.LayoutParams(QuickSize.widthPx(c, avail, part), WRAP)
+        lp.gravity = Gravity.CENTER_HORIZONTAL
+        return lp
+    }
+
+    /**
+     * Step 65: edit mode: a part gets a dashed rectangle and a round handle in its lower right corner. Drag the handle to make the part
+     * bigger or smaller (height and, for the wide parts and the sliders, width too); the rectangle follows the finger and the new size is
+     * kept for the phone's current orientation (portrait and landscape are separate) when the finger lifts. [withWidth] false = the round
+     * buttons: they keep their shape and grow as one.
+     */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun resizable(view: View, part: String, withWidth: Boolean): View {
+        val c = context
+        val box = FrameLayout(c)
+        box.clipChildren = false
+        box.clipToPadding = false
+        box.addView(view, FrameLayout.LayoutParams(MATCH, WRAP))
+        val ghost = View(c)
+        ghost.background = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            cornerRadius = c.dpf(18f)
+            setStroke(c.dp(2), Color.argb(230, 255, 255, 255), c.dpf(7f), c.dpf(5f))
+        }
+        val ghostLp = FrameLayout.LayoutParams(MATCH, MATCH, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
+        box.addView(ghost, ghostLp)
+        val handle = View(c)
+        handle.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.WHITE)
+            setStroke(c.dp(3), Color.argb(255, 90, 130, 255))
+        }
+        handle.contentDescription = "Resize"
+        val hlp = FrameLayout.LayoutParams(c.dp(30), c.dp(30), Gravity.BOTTOM or Gravity.END)
+        hlp.rightMargin = c.dp(2)
+        hlp.bottomMargin = c.dp(2)
+        box.addView(handle, hlp)
+        var downX = 0f
+        var downY = 0f
+        var startH = 100
+        var startW = 100
+        var viewW = 1
+        var viewH = 1
+        var newH = 100
+        var newW = 100
+        handle.setOnTouchListener { v, ev ->
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    v.parent.requestDisallowInterceptTouchEvent(true)
+                    downX = ev.rawX
+                    downY = ev.rawY
+                    startH = QuickSize.pct(c, part)
+                    startW = QuickSize.wpct(c, part)
+                    viewW = max(1, box.width)
+                    viewH = max(1, box.height)
+                    newH = startH
+                    newW = startW
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = ev.rawX - downX
+                    val dy = ev.rawY - downY
+                    if (withWidth) {
+                        newH = (startH * (viewH + dy) / viewH).toInt().coerceIn(QuickSize.MIN, QuickSize.MAX)
+                        newW = (startW * (viewW + 2f * dx) / viewW).toInt().coerceIn(QuickSize.W_MIN, QuickSize.W_MAX)
+                        ghostLp.width = (viewW * newW / startW.toFloat()).toInt()
+                    } else {
+                        newH = (startH * (viewH + (dx + dy) / 2f) / viewH).toInt().coerceIn(QuickSize.MIN, QuickSize.MAX)
+                    }
+                    ghostLp.height = (viewH * newH / startH.toFloat()).toInt()
+                    ghost.layoutParams = ghostLp
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    QuickSize.save(c, part, newH, if (withWidth) newW else null)
+                    build()
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    ghostLp.width = MATCH
+                    ghostLp.height = MATCH
+                    ghost.layoutParams = ghostLp
+                    true
+                }
+                else -> true
+            }
+        }
+        return box
+    }
+
     private fun minus(view: View, outside: Boolean, onRemove: () -> Unit): View {
         val c = context
         val box = FrameLayout(c)
@@ -1018,7 +1304,7 @@ class QuickPanel(
         row.addView(done, LinearLayout.LayoutParams(WRAP, WRAP))
         col.addView(row, LinearLayout.LayoutParams(MATCH, WRAP))
         val hint = TextView(c)
-        hint.text = "Tap  \u2212  to remove a part. Drag the bar under the buttons to change their height."
+        hint.text = "Tap  \u2212  to remove a part. Drag the round dot in the corner of a part to resize it. Drag the bar under the buttons to change the rows."
         hint.setTextColor(PanelLook.textA(215))
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         hint.gravity = Gravity.CENTER
@@ -1207,6 +1493,7 @@ class QuickPanel(
 
     fun open() {
         if (isOpen && !closing) return
+        applyStyle()
         if (closing) finishClose() // Step 39: a close that never finished must not block the next open
         card.animate().setUpdateListener(null).cancel()
         card.setLayerType(View.LAYER_TYPE_NONE, null)
@@ -1214,6 +1501,8 @@ class QuickPanel(
         card.alpha = 1f
         Motion.setBlur(card, 0f)
         closing = false
+        dragging = false
+        swiped = false
         editor = null
         gallery = null
         colourOpen = false
@@ -1221,6 +1510,7 @@ class QuickPanel(
         addOpen = false
         PanelTheme.load(context)
         QuickIcons.load(context)
+        autoAddPhoneButtons() // Step 78
         build()
         system.start()
         system.onChanged = { refresh() }
@@ -1238,9 +1528,9 @@ class QuickPanel(
         handler.postDelayed(poll, 1200L)
         visibility = View.VISIBLE
         // Step 25: nothing is blurred behind the panel any more, so the veil alone must hide the Home screen: stronger than before.
-        scrim.background = PanelTheme.scrim(205, PanelLook.dark)
+        scrim.background = PanelTheme.scrim(scrimA(205), PanelLook.dark)
         // Step 31: slide down AND fade 0 -> 100 together (panel first, the veil a little later), one smooth curve.
-        val h0 = -context.resources.displayMetrics.heightPixels.toFloat()
+        val h0 = sgn() * context.resources.displayMetrics.heightPixels.toFloat()
         scrim.alpha = 0f
         scrim.translationY = h0 * 0.35f
         card.alpha = 0f
@@ -1266,8 +1556,9 @@ class QuickPanel(
         onOpenChanged?.invoke()
     }
 
-    fun close(animated: Boolean) {
+    fun close(animated: Boolean, fromDrag: Boolean = false) {
         if (!isOpen || closing) return
+        dragging = false
         card.animate().cancel()
         scrim.animate().cancel()
         unwatchPhone()
@@ -1288,14 +1579,19 @@ class QuickPanel(
             return
         }
         closing = true
-        // Step 35: the moment the swipe up is accepted the opacity falls straight from 100% to 20%, then runs down to 0 while the panel
-        // slides up fast. No blur while closing (changing a blur on every frame was a source of glitches); the card is one picture while it moves.
-        card.alpha = Motion.CLOSE_START_ALPHA
-        scrim.alpha = Motion.CLOSE_START_ALPHA
+        // Step 35: a tap / Back closes fast: the opacity falls straight from 100% and the panel slides up in 80 ms. No blur while closing.
+        // Step 59: after a swipe up ([fromDrag]) the panel is already part-way, so it simply carries on from where the finger left it
+        // (opacity and place as they are) and glides the rest in about 0.2 s.
+        if (!fromDrag) {
+            card.alpha = Motion.CLOSE_START_ALPHA
+            scrim.alpha = Motion.CLOSE_START_ALPHA
+        }
         card.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-        val travel = -(card.height * 0.35f + context.dp(24))
-        card.animate().translationY(travel).setDuration(Motion.CLOSE_MS)
-            .setInterpolator(Motion.CLOSE)
+        val travel = sgn() * closeTravel()
+        val target = if (fromDrag) (if (sheetMode) max(card.translationY, travel) else min(card.translationY, travel)) else travel
+        val ms = if (fromDrag) PanelSwipe.closeMs((card.translationY / travel).coerceIn(0f, 1f)) else Motion.CLOSE_MS
+        card.animate().translationY(target).setDuration(ms)
+            .setInterpolator(if (fromDrag) PanelSwipe.GLIDE else Motion.CLOSE)
             .setUpdateListener {
                 val q = (card.translationY / travel).coerceIn(0f, 1f)
                 card.alpha = Motion.fadeOut(q)
@@ -1305,7 +1601,7 @@ class QuickPanel(
             .withEndAction { finishClose() }.start()
         // Step 39: if the end of the slide is never reported (the animation was cancelled, the window was busy) the panel would stay on the screen,
         // invisible, and take every touch. This makes sure it is gone a moment after the slide should have ended.
-        handler.postDelayed({ finishClose() }, Motion.CLOSE_MS + 250L)
+        handler.postDelayed({ finishClose() }, ms + 250L)
         // The blur fades while the panel slides away.
         post { onOpenChanged?.invoke() }
     }
@@ -1323,6 +1619,7 @@ class QuickPanel(
         scrim.translationY = 0f
         closing = false
         visibility = View.GONE
+        onOpenChanged?.invoke() // Step 70: tell the Home screen the panel is really gone (the strip comes back)
         onGone?.invoke()
     }
 
@@ -1399,7 +1696,7 @@ class QuickPanel(
 
         private val circle = FrameLayout(context)
         private val glyph = QuickGlyph(context, def.glyph).also {
-            if (def.id.startsWith(QuickTiles.CUSTOM_PREFIX) && def.glyph == QuickGlyph.GRID) it.letter = def.label.trim().take(1).uppercase()
+            if (QuickTiles.isLetterButton(def.id) && def.glyph == QuickGlyph.GRID) it.letter = def.label.trim().take(1).uppercase()
         }
         private val label = TextView(context)
         private val sub = TextView(context)
@@ -1410,7 +1707,7 @@ class QuickPanel(
             isClickable = true
             isLongClickable = true
             label.text = def.label
-            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (wide) 14f else 11.5f)
+            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (wide) QuickSize.scale(c, 14f, QuickSize.WIDE) else QuickSize.scale(c, 11.5f, QuickSize.BUTTON))
             label.maxLines = if (wide) 1 else 2
             label.ellipsize = android.text.TextUtils.TruncateAt.END
             sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
@@ -1420,8 +1717,8 @@ class QuickPanel(
                 orientation = HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(c.dp(10), 0, c.dp(10), 0)
-                circle.addView(glyph, FrameLayout.LayoutParams(c.dp(26), c.dp(26), Gravity.CENTER))
-                addView(circle, LayoutParams(c.dp(42), c.dp(42)))
+                circle.addView(glyph, FrameLayout.LayoutParams(QuickSize.dp(c, 26, QuickSize.WIDE), QuickSize.dp(c, 26, QuickSize.WIDE), Gravity.CENTER))
+                addView(circle, LayoutParams(QuickSize.dp(c, 42, QuickSize.WIDE), QuickSize.dp(c, 42, QuickSize.WIDE)))
                 val texts = LinearLayout(c)
                 texts.orientation = VERTICAL
                 texts.addView(label, LayoutParams(WRAP, WRAP))
@@ -1432,8 +1729,8 @@ class QuickPanel(
             } else {
                 orientation = VERTICAL
                 gravity = Gravity.CENTER_HORIZONTAL
-                circle.addView(glyph, FrameLayout.LayoutParams(c.dp(28), c.dp(28), Gravity.CENTER))
-                addView(circle, LayoutParams(c.dp(58), c.dp(58)))
+                circle.addView(glyph, FrameLayout.LayoutParams(QuickSize.dp(c, 28, QuickSize.BUTTON), QuickSize.dp(c, 28, QuickSize.BUTTON), Gravity.CENTER))
+                addView(circle, LayoutParams(QuickSize.dp(c, 58, QuickSize.BUTTON), QuickSize.dp(c, 58, QuickSize.BUTTON)))
                 label.gravity = Gravity.CENTER
                 val lp = LayoutParams(MATCH, WRAP)
                 lp.topMargin = c.dp(5)
@@ -1445,7 +1742,7 @@ class QuickPanel(
             val c = context
             val on = state.on
             val picked = QuickIcons.of(def.id)
-            glyph.letter = if (picked == null && def.id.startsWith(QuickTiles.CUSTOM_PREFIX) && state.glyph == QuickGlyph.GRID) def.label.trim().take(1).uppercase() else if (picked == QuickGlyph.GRID) def.label.trim().take(1).uppercase() else null
+            glyph.letter = if (picked == null && QuickTiles.isLetterButton(def.id) && state.glyph == QuickGlyph.GRID) def.label.trim().take(1).uppercase() else if (picked == QuickGlyph.GRID) def.label.trim().take(1).uppercase() else null
             glyph.show(picked ?: state.glyph)
             sub.text = state.sub
             if (lastOn != on) {

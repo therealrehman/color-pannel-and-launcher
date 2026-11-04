@@ -114,6 +114,7 @@ class HomeSettingsActivity : Activity() {
     override fun onResume() {
         super.onResume()
         // Back from the phone's own settings screens (default Home app, notification access): show the new state.
+        OverlayPanel.sync(this) // Step 50: back from "Draw over other apps": start the panel service
         if (::holder.isInitialized && (stack.last() == MAIN || stack.last() == BADGES || stack.last() == QUICK)) show()
     }
 
@@ -182,6 +183,7 @@ class HomeSettingsActivity : Activity() {
             TERMS -> termsPage()
             PERMISSIONS -> permissionsPage()
             ABOUT -> aboutPage()
+            GUIDE -> guidePage()
             OPEN_SOURCE -> openSourcePage()
             else -> mainPage()
         }
@@ -250,6 +252,89 @@ class HomeSettingsActivity : Activity() {
         return page
     }
 
+    // ---------------------------------------------------------------- Step 60: phone buttons
+
+    /** "Add phone buttons": one list of app tiles and phone screens; ticked ones become buttons of the Quick panel. */
+    private fun addPhoneButtons(tickAll: Boolean = false) {
+        val found = ArrayList<Pair<PhoneButtons.Entry, String>>() // entry, text in the list
+        for (t in PhoneButtons.appTiles(this)) found.add(Pair(t, "App tile: " + t.label))
+        for (sc in PhoneButtons.screens(this)) found.add(Pair(sc, sc.label))
+        val saved = QuickTiles.phoneEntries(this)
+        // a saved button this phone no longer finds (app removed) stays in the list, so it can be unticked
+        for (e in saved) if (found.none { it.first.id == e.id }) found.add(Pair(e, e.label + " (not found now)"))
+        if (found.isEmpty()) {
+            toast("No app tiles or phone screens were found on this phone")
+            return
+        }
+        val savedIds = saved.map { it.id }.toSet()
+        val checked = BooleanArray(found.size) { tickAll || found[it].first.id in savedIds }
+        AlertDialog.Builder(this)
+            .setTitle(if (tickAll) "Buttons found on this phone" else "Add phone buttons")
+            .setMultiChoiceItems(found.map { it.second }.toTypedArray(), checked) { _, i, isChecked -> checked[i] = isChecked }
+            .setPositiveButton("OK") { _, _ ->
+                val picked = found.filterIndexed { i, _ -> checked[i] }.map { it.first }
+                QuickTiles.savePhone(this, picked)
+                toast(if (picked.isEmpty()) "No phone buttons" else "${picked.size} phone buttons saved: they are at the end of the panel")
+                show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /** "Add an app as a button": every installed app, ticked ones become buttons that open the app (the other phone buttons are kept). */
+    private fun addAppButtons() {
+        val apps = PhoneButtons.installedApps(this)
+        val saved = QuickTiles.phoneEntries(this)
+        val savedIds = saved.map { it.id }.toSet()
+        val checked = BooleanArray(apps.size) { apps[it].id in savedIds }
+        AlertDialog.Builder(this)
+            .setTitle("Add an app as a button")
+            .setMultiChoiceItems(apps.map { it.label }.toTypedArray(), checked) { _, i, isChecked -> checked[i] = isChecked }
+            .setPositiveButton("OK") { _, _ ->
+                val picked = apps.filterIndexed { i, _ -> checked[i] }
+                val others = saved.filter { !it.id.startsWith(PhoneButtons.PKG_PREFIX) }
+                QuickTiles.savePhone(this, others + picked)
+                toast(if (picked.isEmpty()) "No app buttons" else "${picked.size} app buttons saved: they are at the end of the panel")
+                show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /** "Match my phone's panel": the buttons follow the order of the phone's own tile list, if the phone shares it. */
+    private fun matchPhonePanel() {
+        val specs = PhoneButtons.parseTileSpecs(PhoneButtons.readTileList(this))
+        if (specs.isEmpty()) {
+            // This phone keeps its tile list private (vivo, Huawei...). Other way: scan the phone for every app tile and phone screen it has
+            // and offer all of them, all ticked: untick what you do not want.
+            toast("This phone does not share its tile list: here is what the scan found on it")
+            addPhoneButtons(true)
+            return
+        }
+        val current = QuickTiles.order(this).map { it.id }
+        val m = PhoneButtons.match(specs, current, QuickTiles.BUILTIN.map { it.id }.toSet()) { pkg, cls -> PhoneButtons.tileLabel(this, pkg, cls) }
+        val have = QuickTiles.phoneEntries(this)
+        QuickTiles.savePhone(this, have + m.newApps.filter { n -> have.none { it.id == n.id } })
+        val ids = m.ids.filter { QuickTiles.def(it) != null }
+        QuickTiles.save(this, ids)
+        toast("The panel now follows your phone's order (${ids.size} buttons)")
+        show()
+    }
+
+    /** "Show the phone's tile list": the raw value and the parsed list, with a Copy button (send it back so the next step can be tuned for this phone). */
+    private fun showPhoneTileList() {
+        val text = PhoneButtons.diagnostic(this)
+        AlertDialog.Builder(this)
+            .setTitle("The phone's tile list")
+            .setMessage(text)
+            .setPositiveButton("Close", null)
+            .setNeutralButton("Copy") { _, _ ->
+                getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Phone tile list", text))
+                toast("Copied")
+            }
+            .show()
+    }
+
     private fun prefs() = getSharedPreferences("launcher", MODE_PRIVATE)
 
     /** Something changed that the Home screen has to build again (it does so when it comes back to the front). */
@@ -285,7 +370,7 @@ class HomeSettingsActivity : Activity() {
             box,
             kit.row(SettingsTile.WALLPAPER, SettingsTile.ORANGE, "Wallpaper", "Gradient wallpapers · portrait and landscape") { go(WALLPAPER) },
             kit.row(SettingsTile.ICONS, SettingsTile.PINK, "Icons", IconPack.modeName() + " · Themed: " + IconTheme.choiceNames[IconTheme.savedMode(this)]) { go(ICONS) },
-            kit.row(SettingsTile.LOOK, SettingsTile.SLATE, "Look and feel", "Panels: " + panelModeName() + " · Blur " + onOff(prefs().getBoolean(K_BLUR, true))) { go(LOOK) }
+            kit.row(SettingsTile.LOOK, SettingsTile.SLATE, "Look and feel", "Panels: " + panelModeName()) { go(LOOK) }
         )
 
         kit.label(box, "Features")
@@ -314,6 +399,11 @@ class HomeSettingsActivity : Activity() {
             kit.row(SettingsTile.LOCK, SettingsTile.PURPLE, "Permissions and data use", "What each permission is for") { go(PERMISSIONS) }
         )
 
+        kit.label(box, "Help")
+        kit.card(
+            box,
+            kit.row(SettingsTile.INFO, SettingsTile.GREEN, "How to use", "Home screen, Quick panel, gestures, wallpapers: a short guide") { go(GUIDE) }
+        )
         kit.label(box, "About")
         kit.card(
             box,
@@ -517,7 +607,7 @@ class HomeSettingsActivity : Activity() {
             else -> tileWidth * 16 / 9
         }
         var rowView: LinearLayout? = null
-        for ((index, def) in Gradients.all.withIndex()) {
+        for ((index, def) in Gradients.wallpapers.withIndex()) {
             if (index % columns == 0) {
                 rowView = LinearLayout(this)
                 rowView.orientation = LinearLayout.HORIZONTAL
@@ -531,7 +621,7 @@ class HomeSettingsActivity : Activity() {
         }
 
         val button = TextView(this)
-        button.text = if (wpSel >= 0) "Set \u201C${Gradients.all[wpSel].name}\u201D as wallpaper" else "Pick a wallpaper"
+        button.text = if (wpSel >= 0) "Set \u201C${Gradients.wallpapers[wpSel].name}\u201D as wallpaper" else "Pick a wallpaper"
         button.gravity = Gravity.CENTER
         button.setTextColor(Look.panel(255))
         button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
@@ -584,8 +674,10 @@ class HomeSettingsActivity : Activity() {
     }
 
     /** Draws the picked gradient at the phone's screen size (portrait, landscape or square) and makes it the wallpaper. */
-    private fun applyWallpaper() {
-        val def = Gradients.all.getOrNull(wpSel)
+    private fun applyWallpaper() = applyWallpaperDef(Gradients.wallpapers.getOrNull(wpSel))
+
+    /** Step 61: also used by Quick panel > "Wallpaper in the panel colour". */
+    private fun applyWallpaperDef(def: GradientDef?) {
         if (def == null) {
             toast("Pick a wallpaper first")
             return
@@ -629,9 +721,7 @@ class HomeSettingsActivity : Activity() {
                 PanelTheme.load(this)
                 PanelTheme.syncWallpaper(this, i)
             },
-            kit.chips("Wallpaper set on", listOf("Home", "Lock", "Both"), prefs().getInt(PanelTheme.KEY_WP_TARGET, 2)) { i ->
-                prefs().edit().putInt(PanelTheme.KEY_WP_TARGET, i).apply()
-            },
+            kit.chips("Wallpaper set on", listOf("Home", "Lock", "Both"), prefs().getInt(PanelTheme.KEY_WP_TARGET, 2)) { wpTarget = it; prefs().edit().putInt(PanelTheme.KEY_WP_TARGET, it).apply() },
             kit.row(-1, 0, "Wallpaper in this panel colour", "Makes a wallpaper of the same colour as the panel (" + PanelTheme.name(PanelTheme.saved(this)) + ")") {
                 PanelTheme.setWallpaper(this, PanelTheme.saved(this)) { toast(it) }
             },
@@ -659,7 +749,284 @@ class HomeSettingsActivity : Activity() {
         )
         kit.note(box, "Split: a swipe down on one half of the Home screen opens the Quick panel and on the other half the notifications. Notification panel: the launcher's own full-screen page (needs Notification access) or the phone's own panel.")
 
-        kit.label(box, "In every app (optional)")
+        kit.label(box, if (StoreBuild.noAccessibility(this)) "In every app" else "In every app, no Accessibility (recommended)")
+        val opOn = OverlayPanel.wanted(this) && OverlayPanel.canDraw(this)
+        kit.card(
+            box,
+            kit.toggle(
+                -1, 0, "Quick panel over other apps",
+                if (opOn) "On: a small notification keeps it ready; tap it to open the panel over any app" else "Off",
+                opOn
+            ) { on ->
+                OverlayPanel.setWanted(this, on)
+                if (on) askNotificationPermission()
+                if (on && !OverlayPanel.canDraw(this)) askOverlay() else show()
+            },
+            kit.row(
+                -1, 0, "Draw over other apps",
+                if (OverlayPanel.canDraw(this)) "Allowed" else "Not allowed: tap to allow"
+            ) { OverlayPanel.openPermissionScreen(this) },
+            kit.chips("Panel style", listOf("Bottom sheet", "Full screen from top"), if (prefs().getBoolean(PREF_SHEET, true)) 0 else 1) { i ->
+                prefs().edit().putBoolean(PREF_SHEET, i == 0).apply()
+            },
+            kit.toggle(-1, 0, "Cover the navigation bar", "Off (recommended): the phone's buttons stay, like when you swipe down on the Home screen. On: the buttons slide away while the panel is open (the screen behind may jump when they come back)", prefs().getBoolean(PanelOverlayService.PREF_COVER_NAV, false)) { on ->
+                prefs().edit().putBoolean(PanelOverlayService.PREF_COVER_NAV, on).apply()
+            },
+            kit.row(-1, 0, "Show panel now", "Test the panel over this screen") {
+                if (!OverlayPanel.showNow()) toast("Switch on \"Quick panel over other apps\" and allow \"Draw over other apps\" first")
+            }
+        )
+        kit.label(box, "Setup check")
+        val chkMaster = OverlayPanel.wanted(this)
+        val chkDraw = OverlayPanel.canDraw(this)
+        val chkNotif = KeepAlive.notificationsOk(this)
+        val chkBattery = KeepAlive.batteryOk(this)
+        val chkRun = OverlayPanel.running()
+        fun mark(ok: Boolean) = if (ok) "\u2714  " else "\u2718  "
+        kit.card(
+            box,
+            kit.row(-1, 0, mark(chkMaster) + "Quick panel over other apps", if (chkMaster) "On" else "Off: tap to switch on") {
+                OverlayPanel.setWanted(this, true)
+                if (!OverlayPanel.canDraw(this)) askOverlay() else show()
+            },
+            kit.row(-1, 0, mark(chkDraw) + "Draw over other apps", if (chkDraw) "Allowed" else "Not allowed: tap to allow") { OverlayPanel.openPermissionScreen(this) },
+            kit.row(-1, 0, mark(chkNotif) + "Notifications", if (chkNotif) "Allowed" else "Not allowed: tap to allow (the panel's notification keeps it alive)") {
+                askNotificationPermission()
+            },
+            kit.row(-1, 0, mark(chkBattery) + "Battery optimisation", if (chkBattery) "Not limited" else "Limited: tap, then set this app to \"Don't optimise\" / \"Allow\"") {
+                KeepAlive.openBatterySettings(this)
+            },
+            kit.row(-1, 0, mark(chkRun) + "Panel service", if (chkRun) "Running" else "Not running: tap to start it") {
+                OverlayPanel.sync(this)
+                show()
+            },
+            kit.row(
+                -1, 0, mark(HomeKeeper.isDefault(this)) + "Home app (default launcher)",
+                if (HomeKeeper.isDefault(this)) "This launcher is the Home app" else "Not the Home app now: tap to set it"
+            ) {
+                startActivity(Intent(this, HomeRoleActivity::class.java))
+            },
+            kit.row(
+                -1, 0, "\u2022  Auto-launch / Protected apps",
+                "The phone does not tell apps this one. Tap, then allow \"Auto-launch\", \"Secondary launch\" and \"Run in background\" for this app" +
+                    if (KeepAlive.isHuaweiFamily()) " (Huawei: Settings > Battery > App launch)." else "."
+            ) {
+                if (!KeepAlive.openAutoLaunch(this)) toast("Opened this app's info screen: look for Battery / Launch / Auto-start")
+            }
+        )
+        kit.label(box, "Keep it running")
+        kit.card(
+            box,
+            kit.toggle(
+                -1, 0, "Keep as my Home app",
+                if (HomeKeeper.isDefault(this)) "It is your Home app now. If the phone puts its own launcher back, you get a notification to set it again" else "Not your Home app now: tap to set it",
+                HomeKeeper.wanted(this)
+            ) { on ->
+                prefs().edit().putBoolean(HomeKeeper.PREF_ON, on).apply()
+                HomeKeeper.check(this, false)
+                show()
+            },
+            kit.row(-1, 0, "Home app log", HomeKeeper.log(this).ifEmpty { "Nothing yet. Holder now: " + HomeKeeper.holder(this) }) {
+                getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("home log", HomeKeeper.log(this) + "\nHolder now: " + HomeKeeper.holder(this)))
+                toast("Copied")
+            },
+            kit.toggle(-1, 0, "Start after the phone restarts", "The panel service comes back by itself after a reboot or an update", KeepAlive.boot(this)) { on ->
+                prefs().edit().putBoolean(KeepAlive.PREF_BOOT, on).apply()
+            },
+            kit.toggle(-1, 0, "Start again when it is stopped", "After a cleaner / swipe-away stops it: restart in a few seconds, and a check every ~15 minutes", KeepAlive.restart(this)) { on ->
+                prefs().edit().putBoolean(KeepAlive.PREF_RESTART, on).apply()
+            },
+            kit.row(-1, 0, "Copy the adb commands", "For the strongest settings (run once on a computer with USB debugging)") {
+                getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("adb commands", KeepAlive.adbCommands()))
+                toast("adb commands copied")
+            }
+        )
+        kit.note(
+            box,
+            "Honest limits: a phone's cleaner can still stop the service (Android 12+ may refuse a restart from the background); then open the launcher, tap the tile or the shortcut and it starts again. " +
+                "The adb commands (copied on tap):\n" + KeepAlive.adbCommands()
+        )
+
+        kit.label(box, "Top handle (a swipe down under the status bar)")
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Top handle", "A thin strip right under the status bar: swipe down on it to open the Quick panel", TopHandle.wanted(this)) { on ->
+                prefs().edit().putBoolean(TopHandle.PREF_ON, on).apply()
+            },
+            kit.toggle(-1, 0, "Show the handle", "On: a small pill is drawn. Off: the strip is there but you can not see it", TopHandle.visible(this)) { on ->
+                prefs().edit().putBoolean(TopHandle.PREF_VISIBLE, on).apply()
+            },
+            kit.chips("Look", listOf("Pill", "Bar (full strip)"), TopHandle.shape(this)) { i ->
+                prefs().edit().putInt(TopHandle.PREF_SHAPE, i).apply()
+            },
+            kit.slider("Thickness (what you see)", 22, TopHandle.thickDp(this) - 2, { (it + 2).toString() + " dp" }) { v ->
+                prefs().edit().putInt(TopHandle.PREF_THICK, TopHandle.clampThick(v + 2)).apply()
+            },
+            kit.chips("Colour", listOf("Quick panel colour", "White", "Gradient"), TopHandle.colorMode(this)) { i ->
+                prefs().edit().putInt(TopHandle.PREF_COLOR, i).apply()
+            },
+            kit.value("Gradient", Gradients.all[TopHandle.gradIndex(this)].name) {
+                val names = Gradients.all.map { it.name }.toTypedArray()
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("Strip gradient")
+                    .setItems(names) { _, which ->
+                        prefs().edit().putInt(TopHandle.PREF_GRAD, which).putInt(TopHandle.PREF_COLOR, 2).apply()
+                        show()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            },
+            kit.row(-1, 0, "Full phone width", "Makes the strip as wide as the phone (Width 100%)") {
+                prefs().edit().putInt(TopHandle.PREF_WIDTH, 100).apply()
+                show()
+            },
+            kit.chips("Edge", listOf("Top", "Bottom (above the buttons)"), if (TopHandle.atBottom(this)) 1 else 0) { i ->
+                prefs().edit().putInt(TopHandle.PREF_EDGE, i).apply()
+            },
+            kit.chips("Place", listOf("Middle", "Left", "Right"), TopHandle.side(this)) { i ->
+                prefs().edit().putInt(TopHandle.PREF_SIDE, i).apply()
+            },
+            kit.slider("Width", 80, TopHandle.widthPct(this) - 20, { (it + 20).toString() + "%" }) { v ->
+                prefs().edit().putInt(TopHandle.PREF_WIDTH, TopHandle.clampWidth(v + 20)).apply()
+            },
+            kit.slider("Height (touch area)", 40, TopHandle.heightDp(this) - 8, { (it + 8).toString() + " dp" }) { v ->
+                prefs().edit().putInt(TopHandle.PREF_HEIGHT, TopHandle.clampHeight(v + 8)).apply()
+            },
+            kit.slider("Distance from the edge (status bar / buttons)", 60, TopHandle.offsetDp(this), { it.toString() + " dp" }) { v ->
+                prefs().edit().putInt(TopHandle.PREF_OFFSET, TopHandle.clampOffset(v)).apply()
+            },
+            kit.toggle(-1, 0, "Vibrate on swipe", null, TopHandle.haptic(this)) { on ->
+                prefs().edit().putBoolean(TopHandle.PREF_HAPTIC, on).apply()
+            }
+        )
+        kit.note(box, "The handle is part of \"Quick panel over other apps\" above (it needs that switch and \"Draw over other apps\"). It can only sit UNDER the status bar: a pull-down that starts on the status bar itself still goes to the phone. It is hidden while the panel is open.")
+
+        kit.label(box, "More ways to open the panel")
+        kit.card(
+            box,
+            kit.chips("Double-tap on the handle", listOf("Nothing", "Quick panel", "Notifications"), MoreTriggers.doubleTap(this)) { i ->
+                prefs().edit().putInt(MoreTriggers.PREF_DOUBLE, i).apply()
+            },
+            kit.chips("Long-press on the handle", listOf("Nothing", "Quick panel", "Notifications"), MoreTriggers.longPress(this)) { i ->
+                prefs().edit().putInt(MoreTriggers.PREF_LONG, i).apply()
+            },
+            kit.toggle(-1, 0, "Side swipes on the handle", "Swipe down on the left half of the handle: Notifications page. On the right half: Quick panel", MoreTriggers.split(this)) { on ->
+                prefs().edit().putBoolean(MoreTriggers.PREF_SPLIT, on).apply()
+            },
+            kit.toggle(-1, 0, "Shake to open", "Shake the phone twice: the Quick panel opens (only while the screen is on and unlocked)", MoreTriggers.shake(this)) { on ->
+                prefs().edit().putBoolean(MoreTriggers.PREF_SHAKE, on).apply()
+            },
+            kit.chips("Shake strength needed", listOf("Gentle", "Normal", "Firm"), MoreTriggers.shakeLevel(this)) { i ->
+                prefs().edit().putInt(MoreTriggers.PREF_SHAKE_LEVEL, i).apply()
+            }
+        )
+        kit.note(box, "The handle gestures need the Top handle switched on. Double-tap and long-press are off by default. Shake uses the phone's motion sensor only while the screen is on, so it uses very little battery, but it can open the panel by mistake when you walk fast or ride a bike: use \"Firm\" then, or leave it off. Everything here still needs \"Quick panel over other apps\" and \"Draw over other apps\".")
+
+        kit.label(box, "Floating button")
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Floating button", "A small round button over every app: tap it to open the Quick panel, drag it where you like", FloatButton.wanted(this)) { on ->
+                prefs().edit().putBoolean(FloatButton.PREF_ON, on).apply()
+            },
+            kit.slider("Size", 44, FloatButton.sizeDp(this) - 28, { (it + 28).toString() + " dp" }) { v ->
+                prefs().edit().putInt(FloatButton.PREF_SIZE, FloatButton.clampSize(v + 28)).apply()
+            },
+            kit.slider("Opacity", 80, FloatButton.alphaPct(this) - 20, { (it + 20).toString() + "%" }) { v ->
+                prefs().edit().putInt(FloatButton.PREF_ALPHA, FloatButton.clampAlpha(v + 20)).apply()
+            },
+            kit.toggle(-1, 0, "Stick to the edge", "After a drag the button glides to the nearest side edge", FloatButton.snap(this)) { on ->
+                prefs().edit().putBoolean(FloatButton.PREF_SNAP, on).apply()
+            },
+            kit.toggle(-1, 0, "Vibrate", null, FloatButton.haptic(this)) { on ->
+                prefs().edit().putBoolean(FloatButton.PREF_HAPTIC, on).apply()
+            },
+            kit.row(-1, 0, "Reset position", "Back to the right edge, upper part of the screen") {
+                FloatButton.resetPosition(this)
+            }
+        )
+        kit.note(box, "The button is part of \"Quick panel over other apps\" (it needs that switch and \"Draw over other apps\"). It is hidden while the panel is open. It sits over the app, so it takes the touches on its own spot: drag it away from buttons you need. The phone may hide it over full-screen videos / games; the smart rules below hide it on purpose.")
+
+        kit.label(box, "Phone buttons (no Accessibility)")
+        val phoneCount = QuickTiles.phoneEntries(this).size
+        kit.card(
+            box,
+            kit.row(-1, 0, "Add an app as a button", "Any app on this phone (works on every phone): a tap opens it") {
+                addAppButtons()
+            },
+            kit.row(-1, 0, "Add phone buttons", if (phoneCount == 0) "Tiles of your apps and screens of your phone, as buttons of the Quick panel" else "$phoneCount added: tap to change") {
+                addPhoneButtons()
+            },
+            kit.row(-1, 0, "Match my phone's panel", "Use the order of the phone's own Quick settings, or, if it does not share it, the buttons found by scanning the phone") {
+                matchPhonePanel()
+            },
+            kit.row(-1, 0, "Show the phone's tile list", "What this phone says its Quick settings hold (with a Copy button)") {
+                showPhoneTileList()
+            },
+            kit.row(-1, 0, "Remove all phone buttons", "Takes these buttons off the panel again") {
+                QuickTiles.savePhone(this, emptyList())
+                toast("Phone buttons removed")
+                show()
+            }
+        )
+        kit.note(box, "These buttons open the phone's screen or the app. They can not show On / Off or switch it: Android only allows that with the Accessibility service (not in the store build). Which buttons can be found depends on the phone.")
+
+        kit.label(box, "Smart rules (hide the handle and the button)")
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Hide in full-screen apps and videos", "When an app hides the status bar (video, game, camera) the handle and the button go away", SmartRules.fullscreen(this)) { on ->
+                prefs().edit().putBoolean(SmartRules.PREF_FULLSCREEN, on).apply()
+            },
+            kit.toggle(-1, 0, "Hide while the keyboard is open", "Best effort: some phones do not tell other apps about the keyboard", SmartRules.keyboard(this)) { on ->
+                prefs().edit().putBoolean(SmartRules.PREF_KEYBOARD, on).apply()
+            },
+            kit.toggle(-1, 0, "Hide on the lock screen", null, SmartRules.lock(this)) { on ->
+                prefs().edit().putBoolean(SmartRules.PREF_LOCK, on).apply()
+            },
+            kit.toggle(-1, 0, "Remove while the screen is off", "Nothing is drawn or kept busy when the screen is dark", SmartRules.screenOff(this)) { on ->
+                prefs().edit().putBoolean(SmartRules.PREF_SCREEN_OFF, on).apply()
+            },
+            kit.toggle(-1, 0, "Show in landscape", "Off: the handle and the button are hidden when the phone is turned sideways", SmartRules.landscape(this)) { on ->
+                prefs().edit().putBoolean(SmartRules.PREF_LANDSCAPE, on).apply()
+            }
+        )
+        kit.note(box, "These rules only hide the handle and the floating button. The notification, the Quick Settings tile and the app shortcut still open the panel everywhere. Full-screen and keyboard are guessed from the bars Android reports to an invisible 1-pixel window (it takes no touches and reads nothing from the app); a phone that does not report them simply never hides because of that rule.")
+
+        kit.label(box, "Quick Settings tile and App shortcut")
+        kit.card(
+            box,
+            kit.row(
+                -1, 0, "Quick Settings tile",
+                "Pull the phone's shade down fully, tap the pencil / edit button and drag the \"Quick panel\" tile into the list. Tapping it closes the shade and opens the panel."
+            ) { toast("Pull the shade down fully, tap the pencil / edit button and add \"Quick panel\"") },
+            kit.row(
+                -1, 0, "App shortcut",
+                "Long-press this app's icon (in the phone's own launcher): \"Quick panel\" and \"Notifications\" open the panel."
+            ) { toast("Long-press the app icon of this launcher in another launcher's app list") }
+        )
+        kit.label(box, "The Quick panel notification")
+        kit.card(
+            box,
+            kit.chips("Tap on the notification opens", listOf("Quick panel", "Notifications page"), PanelNote.tapPage(this)) { i ->
+                prefs().edit().putInt(PanelNote.PREF_TAP, i).apply()
+            },
+            kit.toggle(-1, 0, "Show the \"Settings\" button", "A button under the notification that opens the launcher settings", PanelNote.showAction(this)) { on ->
+                prefs().edit().putBoolean(PanelNote.PREF_ACTION, on).apply()
+            },
+            kit.row(-1, 0, "Hide the notification", "Opens the phone's own screen for it: switch the \"Quick panel\" notification category off. The panel keeps working.") {
+                openNotificationChannelSettings()
+            }
+        )
+        kit.note(box, "The notification is what keeps the panel service alive, so it can not be removed from the launcher. Switching its category off in the phone's own settings hides it (on Android 13+ you can also swipe it away) and the top handle, tile and shortcut keep working.")
+
+        kit.note(
+            box,
+            "This needs no Accessibility service. Android shows this kind of window above apps but BELOW the phone's status bar, so the status bar itself can not be taken over: " +
+                "the panel opens from the notification of this switch, the top handle, the floating button, the Quick Settings tile, the app shortcut, or a shake (all set up below). " +
+                "Nothing on the screen is read; the panel is only drawn over the app you are in."
+        )
+
+        if (!StoreBuild.noAccessibility(this)) { // Step 8: the store build has no Accessibility service, so none of these rows exist there
+        kit.label(box, "In every app, with Accessibility (optional)")
         val spOn = SystemPanel.wanted(this) && SystemPanel.serviceEnabled(this)
         kit.card(
             box,
@@ -685,6 +1052,7 @@ class HomeSettingsActivity : Activity() {
                 "It does not read your screen; the picture is only blurred and shown, never saved or sent. With \"Catch swipes\" off it falls back to noticing the phone's panel and closing it (it can flicker). Tapping the status bar itself does nothing while the bar is on. " +
                 "Last system window seen: " + (SystemPanel.lastSeen(this).ifEmpty { "none yet" })
         )
+        }
 
         kit.label(box, "Layout")
         kit.card(
@@ -717,13 +1085,52 @@ class HomeSettingsActivity : Activity() {
         )
     }
 
+    /** Explains "Draw over other apps" before Android's own screen opens. */
+    private fun askOverlay() {
+        AlertDialog.Builder(this)
+            .setTitle("Allow \"Draw over other apps\"")
+            .setMessage(
+                getString(R.string.app_name) + " draws the Quick panel above the app you are in. It does not read or change anything inside other apps, and nothing leaves the phone. " +
+                    "In the screen that opens, switch \"Allow display over other apps\" on for " + getString(R.string.app_name) + ", then come back."
+            )
+            .setPositiveButton("Continue") { _, _ -> OverlayPanel.openPermissionScreen(this) }
+            .setNegativeButton("Not now") { _, _ ->
+                OverlayPanel.setWanted(this, false)
+                show()
+            }
+            .show()
+    }
+
+    /** Android 13+: the small notification of the panel service needs this to be shown (the panel works without it). */
+    /** Step 52: the phone's own settings of the "Quick panel" notification category (it can be switched off there). */
+    private fun openNotificationChannelSettings() {
+        try {
+            val i = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, "quick_panel_overlay")
+            startActivity(i)
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+            } catch (e2: Exception) {
+                toast("Open the phone's notification settings for this app")
+            }
+        }
+    }
+
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 50)
+        }
+    }
+
     /** Explains the Accessibility service before Android's own screen opens. */
     private fun askAccessibility() {
         AlertDialog.Builder(this)
             .setTitle("Allow the Accessibility service")
             .setMessage(
-                getString(R.string.app_name) + " uses Android's Accessibility service only for the optional Quick panel: to notice that the phone's own status-bar panel opened and show the Quick panel instead, to take a picture of the screen in memory to blur it behind the panel, and, when you tap a button such as Wi-Fi or Bluetooth, to open the phone's own Quick settings for a moment, find that button by its name and press it for you. " +
-                    "It does not read your messages, passwords or other apps, it keeps nothing, and nothing leaves the phone. The launcher works fully without this service, and you can switch it off at any time in Settings > Accessibility. In the list that opens, choose " + getString(R.string.app_name) + " and switch it on.\n\n" +
+                getString(R.string.app_name) + " uses Android's Accessibility service for one thing: to notice that the phone's own status-bar panel opened, so it can close it and show the Quick panel instead. " +
+                    "It does not read your screen, passwords or messages, and nothing leaves the phone. In the list that opens, choose " + getString(R.string.app_name) + " and switch it on.\n\n" +
                     "If the switch is greyed out (Android 13+ for apps installed outside Google Play): open Settings > Apps > " + getString(R.string.app_name) +
                     ", tap the three dots and choose \"Allow restricted settings\", then try again."
             )
@@ -795,10 +1202,6 @@ class HomeSettingsActivity : Activity() {
         kit.label(box, "Effects")
         kit.card(
             box,
-            kit.toggle(-1, 0, "Blur", "Blurs the wallpaper behind the Apps screen, folders and the widget picker (Android 12+)", prefs().getBoolean(K_BLUR, true)) { on ->
-                prefs().edit().putBoolean(K_BLUR, on).apply()
-                changed()
-            },
             kit.toggle(-1, 0, "Wallpaper scroll", "The wallpaper slides a little when you swipe between pages", prefs().getBoolean(K_WALLPAPER_SCROLL, true)) { on ->
                 prefs().edit().putBoolean(K_WALLPAPER_SCROLL, on).apply()
                 changed()
@@ -1129,7 +1532,7 @@ class HomeSettingsActivity : Activity() {
         for (section in LegalText.privacy) {
             val block = textBlock(section)
             if (section.heading.startsWith("4.")) {
-                for (permission in LegalText.permissions) block.addView(permissionView(permission))
+                for (permission in LegalText.visible(this)) block.addView(permissionView(permission))
             }
             kit.space(box, 10)
             kit.card(box, block)
@@ -1149,9 +1552,9 @@ class HomeSettingsActivity : Activity() {
     private fun permissionsPage(): View = kit.page("Permissions and data use", { goBack() }) { box ->
         kit.note(box, "What {app} can access on this phone and why. It collects no data and has no internet access.".let { LegalText.fill(this, it) })
         kit.label(box, "Always on")
-        kit.card(box, *LegalText.permissions.filter { !it.optional }.map { permissionView(it) }.toTypedArray())
+        kit.card(box, *LegalText.visible(this).filter { !it.optional }.map { permissionView(it) }.toTypedArray())
         kit.label(box, "Only if you turn the feature on")
-        kit.card(box, *LegalText.permissions.filter { it.optional }.map { permissionView(it) }.toTypedArray())
+        kit.card(box, *LegalText.visible(this).filter { it.optional }.map { permissionView(it) }.toTypedArray())
         kit.label(box, "Data collected")
         kit.card(box, kit.paragraph("None. Your layout and settings stay on this phone. You can erase them by clearing the app's storage or uninstalling it."))
         footer(box)
@@ -1182,6 +1585,48 @@ class HomeSettingsActivity : Activity() {
         (info.versionName ?: "?") + " (" + info.versionCode + ")"
     } catch (e: Exception) {
         "?"
+    }
+
+    // ------------------------------------------------------------------ How to use (Step 61)
+
+    private fun guidePage(): View = kit.page("How to use", { goBack() }) { box ->
+        fun part(title: String, vararg lines: String) {
+            kit.label(box, title)
+            kit.note(box, lines.joinToString("\n\n"))
+        }
+        part(
+            "1. First minutes",
+            "Settings > Set as default: make this launcher your Home app. Press Home once to see it.",
+            "Long-press an empty spot on the Home screen: Edit Home screen, Widgets, Wallpaper and Settings. Drag icons to move them, drop one on another to make a folder."
+        )
+        part(
+            "2. Quick panel and Notifications",
+            "On the Home screen, swipe down: the Quick panel (buttons, brightness, volume, music) opens. Swipe left on it for the Notifications page, swipe right to come back. Swipe up (or press Back) to close.",
+            "Sliders: drag the finger along a slider to change brightness or volume. A sideways drag on a slider never switches the page. Tap Edit (the pencil) to move, add or remove buttons; Settings > Quick panel changes colours and icons.",
+            "The Notifications page needs Notification access (the app asks once)."
+        )
+        part(
+            "3. The panel inside every app (no Accessibility)",
+            "Settings > Quick panel > Quick panel over other apps: switch on and allow Draw over other apps. Then open the panel from any app with: the Top handle (swipe down on the thin strip under the status bar), the Floating button, the Quick Settings tile (add it from the phone's own shade, pencil button), the notification, or the app icon's long-press shortcuts.",
+            "More triggers: double-tap and long-press on the handle, left / right half swipes, shake. Smart rules hide the handle in full-screen videos, with the keyboard, on the lock screen.",
+            "The phone's own status bar can not be replaced without Accessibility, so the panel is opened from the strip, not from the status bar. Cover the navigation bar (Settings > Quick panel) hides the phone's bottom buttons while the panel is open; swipe up from the bottom edge to bring them back."
+        )
+        part(
+            "4. Panel colours and matching wallpapers",
+            "Settings > Quick panel > Colour: pick a panel colour (white glass, solid colours, gradients). Right under it: Wallpaper in this panel colour makes a wallpaper of the same colour, and Wallpaper follows the panel colour does it every time you pick a colour.",
+            "Settings > Wallpaper lists all gradients, the panel colours too. Choose Portrait / Landscape and where to set it (Home, Lock, Both)."
+        )
+        part(
+            "5. Widgets, folders, search",
+            "Long-press Home > Widgets: pick a widget, then drag to move and use the corner handles to resize. The built-in clock widget has gradient themes and fonts.",
+            "Swipe up on Home for all apps; the letters on the right jump to a letter. The search bar finds apps and the web."
+        )
+        part(
+            "6. If something does not work",
+            "Panel does not open over apps: check both switches (Quick panel over other apps, Draw over other apps).",
+            "Handle or button disappears after a while: Settings > Quick panel > Keep alive / Setup check shows the battery and protected-apps screens of your phone (Huawei, Vivo, Xiaomi...). Allow Auto-start and No restrictions for this app.",
+            "Settings > Backup saves and restores your Home layout."
+        )
     }
 
     private fun aboutPage(): View = kit.page("About", { goBack() }) { box ->
@@ -1461,11 +1906,12 @@ class HomeSettingsActivity : Activity() {
         private const val TERMS = "terms"
         private const val PERMISSIONS = "permissions"
         private const val ABOUT = "about"
+        private const val GUIDE = "guide"
         private const val OPEN_SOURCE = "opensource"
 
         /** Pages a caller may ask for with [EXTRA_PAGE]. */
         private val PAGES = setOf(
-            HOME, APPS, DOCK, WALLPAPER, QUICK, ICONS, LOOK, GESTURES, BADGES, EDGE, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT
+            HOME, APPS, DOCK, WALLPAPER, QUICK, ICONS, LOOK, GESTURES, BADGES, EDGE, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT, GUIDE
         )
 
         // The launcher's saved settings (same keys the Home screen reads).
@@ -1473,7 +1919,6 @@ class HomeSettingsActivity : Activity() {
         private const val K_NOTIF_SWIPE = "notif_swipe"
         private const val K_SWIPE_MODE = "swipe_down_mode"
         private const val K_LOCK_TAP = "lock_tap"
-        private const val K_BLUR = "blur"
         private const val K_WALLPAPER_SCROLL = "wallpaper_scroll"
         private const val K_DOCK_COLOR = "dock_color"
         private const val K_DOCK_OPACITY = "dock_opacity"

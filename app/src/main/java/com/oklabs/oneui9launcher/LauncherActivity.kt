@@ -328,6 +328,7 @@ class LauncherActivity : Activity() {
         super.onResume()
         noTransition()
         isForeground = true
+        OverlayPanel.sync(this) // Step 50: the Quick panel over other apps stays ready while it is switched on
         if (Backup.reloadHome || HomeStore.configChanged(this)) { // Home settings changed something / a backup was restored: build the screen again
             recreate()
             return
@@ -367,6 +368,7 @@ class LauncherActivity : Activity() {
     }
 
     override fun onPause() {
+        PanelOverlayService.notifyHomePanelOpen(false)
         dragLayer.dismiss()
         folderLayer.close(animated = false)
         widgetPicker.close(animated = false)
@@ -782,8 +784,9 @@ class LauncherActivity : Activity() {
     private fun animateOverlayBlur() {
         // Step 25: the Quick panel no longer blurs what is behind it (blur + closing slide made the apps behind flash twice);
         // it uses a plain, stronger veil instead (see QuickPanel.open).
-        val open = folderLayer.isOpen || (::widgetPicker.isInitialized && widgetPicker.isOpen) ||
-            (::notifPage.isInitialized && notifPage.wantsBlur)
+        // Step 59: the Notifications page does not blur the Home screen any more (the apps behind it went blurry for a moment when the page was
+        // swiped away); like the Quick panel it only uses its veil.
+        val open = folderLayer.isOpen || (::widgetPicker.isInitialized && widgetPicker.isOpen)
         blurAnimator?.cancel()
         val anim = ValueAnimator.ofFloat(overlayBlur, if (open) 1f else 0f)
         anim.duration = 150
@@ -1039,11 +1042,6 @@ class LauncherActivity : Activity() {
                     IconTheme.cycle(this)
                     loadApps() // every icon is drawn again in the new colours
                 },
-                MenuEntry(if (blurOn()) "Blur: On" else "Blur: Off", null) {
-                    setPref(KEY_BLUR, !blurOn())
-                    appliedBlur = -1
-                    applyBlur()
-                },
                 MenuEntry(if (wallpaperScrollOn()) "Wallpaper scroll: On" else "Wallpaper scroll: Off", null) {
                     setPref(KEY_WALLPAPER_SCROLL, !wallpaperScrollOn())
                     updateWallpaperOffset(pager.scrollFraction())
@@ -1239,13 +1237,19 @@ class LauncherActivity : Activity() {
                 toast("Can't open Settings")
             }
         }
-        quickPanel.onOpenChanged = { animateOverlayBlur() }
+        quickPanel.onOpenChanged = { animateOverlayBlur(); syncHomePanelFlag() }
         root.quick = quickPanel
         root.addView(
             quickPanel,
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         )
         quickPanel.setInsets(insetTop, insetBottom)
+    }
+
+    /** Step 62: tells the overlay service whether a Home panel is open (it then hides the strip and the floating button). */
+    private fun syncHomePanelFlag() {
+        val open = (::quickPanel.isInitialized && quickPanel.isOpen) || (::notifPage.isInitialized && notifPage.isOpen)
+        PanelOverlayService.notifyHomePanelOpen(open)
     }
 
     private fun openQuickPanel() {
@@ -1261,7 +1265,7 @@ class LauncherActivity : Activity() {
     /** The Notifications page: same layer level as the Quick panel (only one of them is open at a time). */
     private fun buildNotifPage() {
         notifPage = NotificationPage(this) { openNotificationSettings() }
-        notifPage.onOpenChanged = { animateOverlayBlur() }
+        notifPage.onOpenChanged = { animateOverlayBlur(); syncHomePanelFlag() }
         notifPage.onSwitchPage = { switchPanels(toNotifs = false) }
         quickPanel.onSwitchPage = { switchPanels(toNotifs = true) }
         root.notifPage = notifPage
