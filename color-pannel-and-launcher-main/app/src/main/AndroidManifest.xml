@@ -16,6 +16,11 @@
          brightness, auto rotate and Do not disturb only after the person allows each one in the phone's own settings. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Step 79a: Unity LevelPlay (Unity Ads) rewarded ads. INTERNET to load/show the ad; AD_ID (Android 13+) so the
+         Google advertising ID can still be read for ad targeting / fraud checks. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
@@ -144,6 +149,18 @@
         <!-- Step 52: the invisible screen the Quick Settings tile and the App shortcuts start; it opens the Quick panel. -->
         <activity
             android:name=".PanelShortcutActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Fix: HomeKeeper's HomeRoleActivity was used from 3 places (the "not your Home app" notification,
+             the Settings "Home app (default launcher)" row and the automatic re-prompt) but was never declared
+             here - every tap/auto-prompt crashed with ActivityNotFoundException, which is exactly why the
+             launcher kept losing its default-launcher status after a restart and never got re-selected. -->
+        <activity
+            android:name=".HomeRoleActivity"
             android:excludeFromRecents="true"
             android:exported="false"
             android:noHistory="true"

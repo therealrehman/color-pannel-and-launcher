@@ -355,6 +355,22 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
                 arc(canvas, cx - s * 0.2f, cy - s * 0.2f, s * 0.1f, 180f, 110f)
                 arc(canvas, cx + s * 0.2f, cy - s * 0.2f, s * 0.1f, 250f, 110f)
             }
+            HOME -> {
+                stroke(s, 0.08f)
+                path.reset()
+                path.moveTo(cx - s * 0.28f, cy)
+                path.lineTo(cx, cy - s * 0.28f)
+                path.lineTo(cx + s * 0.28f, cy)
+                canvas.drawPath(path, paint)
+                path.reset()
+                path.moveTo(cx - s * 0.2f, cy - s * 0.02f)
+                path.lineTo(cx - s * 0.2f, cy + s * 0.26f)
+                path.lineTo(cx + s * 0.2f, cy + s * 0.26f)
+                path.lineTo(cx + s * 0.2f, cy - s * 0.02f)
+                canvas.drawPath(path, paint)
+                fill()
+                canvas.drawRect(cx - s * 0.06f, cy + s * 0.08f, cx + s * 0.06f, cy + s * 0.26f, paint)
+            }
             else -> QuickGlyphArt.draw(canvas, kind, s, cx, cy, tint)
         }
     }
@@ -448,6 +464,7 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
         const val NFC = 30
         const val NIGHT = 31
         const val GRID = 32
+        const val HOME = 33
     }
 }
 

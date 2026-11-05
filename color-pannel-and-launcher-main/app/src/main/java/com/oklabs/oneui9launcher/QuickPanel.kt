@@ -1186,7 +1186,7 @@ class QuickPanel(
             cornerRadius = c.dpf(18f)
             setStroke(c.dp(2), Color.argb(230, 255, 255, 255), c.dpf(7f), c.dpf(5f))
         }
-        val ghostLp = FrameLayout.LayoutParams(MATCH, WRAP, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
+        val ghostLp = FrameLayout.LayoutParams(MATCH, MATCH, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
         box.addView(ghost, ghostLp)
         val handle = View(c)
         handle.background = GradientDrawable().apply {
@@ -1242,7 +1242,7 @@ class QuickPanel(
                 }
                 MotionEvent.ACTION_CANCEL -> {
                     ghostLp.width = MATCH
-                    ghostLp.height = WRAP
+                    ghostLp.height = MATCH
                     ghost.layoutParams = ghostLp
                     true
                 }
@@ -1257,7 +1257,7 @@ class QuickPanel(
         val box = FrameLayout(c)
         box.clipChildren = false
         box.clipToPadding = false
-        box.addView(view, FrameLayout.LayoutParams(MATCH, WRAP))
+        box.addView(view, FrameLayout.LayoutParams(MATCH, MATCH))
         val badge = TextView(c)
         badge.text = "\u2212"
         badge.setTextColor(Color.WHITE)

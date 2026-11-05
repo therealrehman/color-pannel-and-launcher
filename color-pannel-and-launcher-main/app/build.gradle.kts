@@ -74,6 +74,12 @@ android {
     }
 }
 
-// Steps 1-6 use only the Android framework - no extra libraries to download.
+// Step 79a: Unity LevelPlay (Unity Ads) - rewarded ads SDK. Loads over the network the first time it is used;
+// everything else in the app still has no third-party library.
 dependencies {
+    implementation("com.unity3d.ads-mediation:mediation-sdk:9.5.0")
+    // Lets the SDK read the Google advertising / app-set ID (used for ad targeting and fraud checks only).
+    implementation("com.google.android.gms:play-services-appset:16.0.0")
+    implementation("com.google.android.gms:play-services-ads-identifier:18.1.0")
+    implementation("com.google.android.gms:play-services-basement:18.1.0")
 }

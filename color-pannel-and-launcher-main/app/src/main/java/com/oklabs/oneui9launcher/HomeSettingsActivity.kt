@@ -88,10 +88,23 @@ class HomeSettingsActivity : Activity() {
         // Android 15+ draws apps edge to edge: keep the pages clear of the status and navigation bars.
         holder.setOnApplyWindowInsetsListener { view, insets ->
             @Suppress("DEPRECATION")
-            view.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop, insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+            view.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop, insets.systemWindowInsetRight, 0)
             insets
         }
-        setContentView(holder, ViewGroup.LayoutParams(MATCH, MATCH))
+        // Step 79c: a thin strip at the very bottom for the Unity LevelPlay banner. Hidden (no space taken)
+        // until a banner actually loads - see Ads.attachBanner.
+        val bannerStrip = FrameLayout(this)
+        bannerStrip.visibility = View.GONE
+        bannerStrip.setOnApplyWindowInsetsListener { view, insets ->
+            @Suppress("DEPRECATION")
+            view.setPadding(insets.systemWindowInsetLeft, 0, insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+            insets
+        }
+        val root = LinearLayout(this)
+        root.orientation = LinearLayout.VERTICAL
+        root.addView(holder, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        root.addView(bannerStrip, LinearLayout.LayoutParams(MATCH, WRAP))
+        setContentView(root, ViewGroup.LayoutParams(MATCH, MATCH))
         try {
             setDarkBarIcons(!Look.dark)
         } catch (e: Throwable) {
@@ -102,6 +115,8 @@ class HomeSettingsActivity : Activity() {
         val first = intent?.getStringExtra(EXTRA_PAGE)
         if (first != null && first != MAIN && first in PAGES) stack.add(first)
         show()
+        Ads.attachBanner(this, bannerStrip)
+        Ads.maybeShowDailyInterstitial(this)
 
         if (Build.VERSION.SDK_INT >= 33) {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(
