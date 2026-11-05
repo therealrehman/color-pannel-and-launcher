@@ -1207,6 +1207,7 @@ class QuickPanel(
         var viewH = 1
         var newH = 100
         var newW = 100
+        var sizeReady = false
         handle.setOnTouchListener { v, ev ->
             when (ev.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -1215,13 +1216,33 @@ class QuickPanel(
                     downY = ev.rawY
                     startH = QuickSize.pct(c, part)
                     startW = QuickSize.wpct(c, part)
-                    viewW = max(1, box.width)
-                    viewH = max(1, box.height)
                     newH = startH
                     newW = startW
+                    // Step 81: box.width/box.height read 0 the first time this box's window has not finished its
+                    // first layout pass yet (this happens specifically the first time the Accessibility panel's own
+                    // window opens; that window lays out separately from, and slower than, the strip panel's
+                    // window). The old fallback (max(1, box.width)) then divided the drag math by 1 instead of the
+                    // box's real size, so the ghost box jumped/snapped on the very first finger movement.
+                    // Fix: do not guess a size. If it is not known yet, wait for one real layout pass and ignore
+                    // ACTION_MOVE until then, so the ghost never moves against a wrong reference size.
+                    if (box.width > 0 && box.height > 0) {
+                        viewW = box.width
+                        viewH = box.height
+                        sizeReady = true
+                    } else {
+                        sizeReady = false
+                        box.post {
+                            if (box.width > 0 && box.height > 0) {
+                                viewW = box.width
+                                viewH = box.height
+                                sizeReady = true
+                            }
+                        }
+                    }
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    if (!sizeReady) return@setOnTouchListener true // Step 81: box not laid out yet, ignore this move rather than guess
                     val dx = ev.rawX - downX
                     val dy = ev.rawY - downY
                     if (withWidth) {
