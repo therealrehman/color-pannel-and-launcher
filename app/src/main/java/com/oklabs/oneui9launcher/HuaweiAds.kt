@@ -10,6 +10,7 @@ import com.huawei.hms.ads.HwAds
 import com.huawei.hms.ads.banner.BannerView
 import com.huawei.hms.ads.reward.Reward
 import com.huawei.hms.ads.reward.RewardAd
+import com.huawei.hms.ads.reward.RewardAdLoadListener
 import com.huawei.hms.ads.reward.RewardAdStatusListener
 
 /**
@@ -67,13 +68,16 @@ object HuaweiAds {
             override fun onRewardAdClosed() {
                 state = 2
             }
+        }
 
+        // Load failures come from RewardAdLoadListener (not from the status listener).
+        val loadListener = object : RewardAdLoadListener() {
             override fun onRewardAdFailedToLoad(errorCode: Int) {
                 unavailable()
             }
         }
 
-        ad.loadAd(AdParam.Builder().build())
+        ad.loadAd(AdParam.Builder().build(), loadListener)
 
         // Wait until the ad is ready (up to 10 s), then show it on the main thread.
         val poll = object : Runnable {
