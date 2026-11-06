@@ -1065,3 +1065,14 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - **Fix:** no more guessing. On `ACTION_DOWN`, if `box.width`/`box.height` are already known (> 0), use them as before. If not, wait for one real layout pass (`box.post { ... }`) before trusting a size, and `ACTION_MOVE` now ignores the drag (does nothing) until that real size is known (`sizeReady` flag). The ghost never moves against a wrong reference size; at worst the very first few milliseconds of a drag are ignored once, on the first open.
 - Changed: `QuickPanel.kt` (the `resizable()` function's touch listener). Version bumped.
 - Not compiled and not run on a phone (syntax parse only). **Test:** open the Accessibility panel for the very first time after install (or after force-closing it so its window is freshly created) and immediately try to resize a part with the drag handle. The ghost box should track the finger normally with no jump/snap on the first touch. Repeat a few times, including fast taps, to be sure.
+
+## Step 84 - app icon: fitted into the launcher mask (no hard edge, panel not cut)
+- **Problem:** the icon was the control-panel picture stretched over the whole 108dp canvas as its background. Launchers show only the central 66dp safe zone and mask the edge with a circle or squircle, so the panel's frame and the dark edge got cut and the icon looked off.
+- **Fix (adaptive icon, 3 layers):**
+  - `ic_launcher_bg_art.png`: the same picture, blurred and colour-averaged over the full canvas (no hard edge).
+  - `ic_launcher_fg_art.png`: the sharp picture at about 68% of the canvas, centred, with a feathered rounded edge so it sits inside the safe zone.
+  - `ic_launcher_mono.png`: rebuilt inside the safe zone for Android 13+ themed icons.
+- `store/appgallery/icon-512.png` and `icon-216.png` rebuilt from the same composite so the store listing matches the phone.
+- Version bumped (code 202).
+- Not compiled and not run on a phone. The preview was generated with Python masks (circle, squircle, rounded square) on a green wallpaper; the real launcher may crop slightly differently.
+- **Test:** install, check the home screen and app drawer in one launcher with a circle mask and one with a squircle. The whole control panel should be visible, with no dark edge cut at the corners.
