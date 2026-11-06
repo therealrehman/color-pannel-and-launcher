@@ -707,7 +707,7 @@ class QuickPanel(
         }
         val wideParams = rowLp(QuickSize.WIDE)
         wideParams.topMargin = c.dp(14)
-        content.addView(if (layoutEdit) resizable(wideRow, QuickSize.WIDE, true) else wideRow, wideParams)
+        content.addView(wideRow, wideParams) // Step 84: no resize handles in edit mode any more
 
         // The rest: round buttons, four to a row, eight to a page, all inside ONE dark frosted rectangle (like the reference phone).
         // Step 26b: more than one page = drag left / right, the pages loop.
@@ -763,8 +763,7 @@ class QuickPanel(
                 val edit = pill("Edit", 18f)
                 edit.setOnClickListener { startEdit() }
                 frame.addView(edit, FrameLayout.LayoutParams(WRAP, WRAP, Gravity.CENTER))
-                content.addView(resizable(frame, QuickSize.BUTTON, false), gp)
-                content.addView(resizeBar(rowsPerPage), LinearLayout.LayoutParams(MATCH, c.dp(34)))
+                content.addView(frame, gp) // Step 84: the rows bar under the buttons is removed
             } else {
                 content.addView(pager, gp)
             }
@@ -785,7 +784,7 @@ class QuickPanel(
             cards = k
             val kp = rowLp(QuickSize.SLIDER)
             kp.topMargin = c.dp(14)
-            content.addView(if (layoutEdit) resizable(minus(k, true) { setHidden(HIDE_VOLUME, true) }, QuickSize.SLIDER, true) else k, kp)
+            content.addView(if (layoutEdit) minus(k, true) { setHidden(HIDE_VOLUME, true) } else k, kp)
             if (isOpen) k.start() // the panel is already showing (back from the editor)
         }
         val lower = LinearLayout(c)
@@ -890,7 +889,7 @@ class QuickPanel(
         row.addView(moon, moonLp)
         val bp = rowLp(QuickSize.SLIDER)
         bp.topMargin = c.dp(topMarginDp)
-        content.addView(if (layoutEdit) resizable(minus(row, true) { setHidden(HIDE_BRIGHT, true) }, QuickSize.SLIDER, true) else row, bp)
+        content.addView(if (layoutEdit) minus(row, true) { setHidden(HIDE_BRIGHT, true) } else row, bp)
     }
 
     /** The power icon in the header: locks the screen (the phone's power menu is not open to launchers). Needs "Double-tap to lock" to be allowed once. */
@@ -944,6 +943,18 @@ class QuickPanel(
         dateLp.bottomMargin = c.dp(4)
         texts.addView(date, dateLp)
         row.addView(texts, LinearLayout.LayoutParams(0, WRAP, 1f))
+
+        // Step 84: the Quick panel + Home app switch. One tap turns the panel on (and asks for the Home app in the same tap) or off.
+        val homeSwitch = QuickGlyph(c, QuickGlyph.HOME_SWITCH)
+        val switchOn = PanelHomeSwitch.isOn(c)
+        homeSwitch.tint = if (switchOn) PanelLook.text else PanelLook.textA(120)
+        homeSwitch.contentDescription = if (switchOn) "Quick panel is on. Tap to turn it off" else "Quick panel is off. Tap to turn it on and make this the Home app"
+        homeSwitch.isClickable = true
+        homeSwitch.setOnClickListener {
+            PanelHomeSwitch.tap(c)
+            handler.postDelayed({ refresh() }, 300)
+        }
+        row.addView(homeSwitch, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
 
         // Step 37: the round colour button: it shows the colour the panel has now; a tap opens / closes the row of colours right here
         val palette = colourDot(PanelTheme.saved(c), false)
@@ -1119,7 +1130,7 @@ class QuickPanel(
 
     private fun chooseColour(i: Int) {
         if (ThemeUnlock.blocks(context, i)) {
-            android.widget.Toast.makeText(context, "Gradients are locked. Watch one ad in Settings > Quick panel to unlock them for 12 hours.", android.widget.Toast.LENGTH_LONG).show()
+            CardActivity.launch(context, i) // Step 84: the unlock card with the Watch-ad button (a service cannot show a dialog itself)
             return
         }
         context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.KEY, i).apply()
@@ -1182,113 +1193,7 @@ class QuickPanel(
         return lp
     }
 
-    /**
-     * Step 65: edit mode: a part gets a dashed rectangle and a round handle in its lower right corner. Drag the handle to make the part
-     * bigger or smaller (height and, for the wide parts and the sliders, width too); the rectangle follows the finger and the new size is
-     * kept for the phone's current orientation (portrait and landscape are separate) when the finger lifts. [withWidth] false = the round
-     * buttons: they keep their shape and grow as one.
-     */
-    @android.annotation.SuppressLint("ClickableViewAccessibility")
-    private fun resizable(view: View, part: String, withWidth: Boolean): View {
-        val c = context
-        val box = FrameLayout(c)
-        box.clipChildren = false
-        box.clipToPadding = false
-        box.addView(view, FrameLayout.LayoutParams(MATCH, WRAP))
-        val ghost = View(c)
-        ghost.background = GradientDrawable().apply {
-            setColor(Color.TRANSPARENT)
-            cornerRadius = c.dpf(18f)
-            setStroke(c.dp(2), Color.argb(230, 255, 255, 255), c.dpf(7f), c.dpf(5f))
-        }
-        val ghostLp = FrameLayout.LayoutParams(MATCH, MATCH, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
-        box.addView(ghost, ghostLp)
-        val handle = View(c)
-        handle.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(Color.WHITE)
-            setStroke(c.dp(3), Color.argb(255, 90, 130, 255))
-        }
-        handle.contentDescription = "Resize"
-        val hlp = FrameLayout.LayoutParams(c.dp(30), c.dp(30), Gravity.BOTTOM or Gravity.END)
-        hlp.rightMargin = c.dp(2)
-        hlp.bottomMargin = c.dp(2)
-        box.addView(handle, hlp)
-        var downX = 0f
-        var downY = 0f
-        var startH = 100
-        var startW = 100
-        var viewW = 1
-        var viewH = 1
-        var newH = 100
-        var newW = 100
-        var sizeReady = false
-        handle.setOnTouchListener { v, ev ->
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    v.parent.requestDisallowInterceptTouchEvent(true)
-                    downX = ev.rawX
-                    downY = ev.rawY
-                    startH = QuickSize.pct(c, part)
-                    startW = QuickSize.wpct(c, part)
-                    newH = startH
-                    newW = startW
-                    // Step 81: box.width/box.height read 0 the first time this box's window has not finished its
-                    // first layout pass yet (this happens specifically the first time the Accessibility panel's own
-                    // window opens; that window lays out separately from, and slower than, the strip panel's
-                    // window). The old fallback (max(1, box.width)) then divided the drag math by 1 instead of the
-                    // box's real size, so the ghost box jumped/snapped on the very first finger movement.
-                    // Fix: do not guess a size. If it is not known yet, wait for one real layout pass and ignore
-                    // ACTION_MOVE until then, so the ghost never moves against a wrong reference size.
-                    if (box.width > 0 && box.height > 0) {
-                        viewW = box.width
-                        viewH = box.height
-                        sizeReady = true
-                    } else {
-                        sizeReady = false
-                        box.post {
-                            if (box.width > 0 && box.height > 0) {
-                                viewW = box.width
-                                viewH = box.height
-                                sizeReady = true
-                            }
-                        }
-                    }
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    if (!sizeReady) return@setOnTouchListener true // Step 81: box not laid out yet, ignore this move rather than guess
-                    val dx = ev.rawX - downX
-                    val dy = ev.rawY - downY
-                    if (withWidth) {
-                        newH = (startH * (viewH + dy) / viewH).toInt().coerceIn(QuickSize.MIN, QuickSize.MAX)
-                        newW = (startW * (viewW + 2f * dx) / viewW).toInt().coerceIn(QuickSize.W_MIN, QuickSize.W_MAX)
-                    } else {
-                        newH = (startH * (viewH + (dx + dy) / 2f) / viewH).toInt().coerceIn(QuickSize.MIN, QuickSize.MAX)
-                    }
-                    // Show the new size by SCALING the dashed ghost, not by changing its layout height. Changing the layout height
-                    // made the whole part grow with the finger: the dashed box and the handle ran down the panel and the other parts
-                    // were pushed out of view. Scaling leaves the layout alone.
-                    ghost.pivotY = 0f
-                    ghost.scaleY = newH / startH.toFloat()
-                    ghost.scaleX = if (withWidth) newW / startW.toFloat() else 1f
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    QuickSize.save(c, part, newH, if (withWidth) newW else null)
-                    build()
-                    true
-                }
-                MotionEvent.ACTION_CANCEL -> {
-                    ghost.scaleX = 1f
-                    ghost.scaleY = 1f
-                    true
-                }
-                else -> true
-            }
-        }
-        return box
-    }
+    // Step 84: the dashed ghost + corner handle (resizable) was removed: it never set the layout.
 
     private fun minus(view: View, outside: Boolean, onRemove: () -> Unit): View {
         val c = context
@@ -1353,51 +1258,7 @@ class QuickPanel(
     }
 
     /** The white bar under the buttons: drag it down for more rows on a page (up to 4), up for fewer (down to 1). */
-    private fun resizeBar(rows: Int): View {
-        val c = context
-        val holder = FrameLayout(c)
-        val bar = View(c)
-        bar.background = GradientDrawable().apply {
-            setColor(PanelLook.text)
-            cornerRadius = c.dpf(3f)
-        }
-        holder.addView(bar, FrameLayout.LayoutParams(c.dp(48), c.dp(5), Gravity.CENTER))
-        val label = TextView(c)
-        label.text = if (rows == 1) "1 row" else "$rows rows"
-        label.setTextColor(PanelLook.textA(200))
-        label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-        holder.addView(label, FrameLayout.LayoutParams(WRAP, WRAP, Gravity.CENTER_VERTICAL or Gravity.END).also { it.rightMargin = c.dp(14) })
-        holder.contentDescription = "Resize the buttons: drag up or down"
-        val step = c.dp(70).toFloat()
-        var downY = 0f
-        holder.setOnTouchListener { v, ev ->
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    downY = ev.rawY
-                    v.parent?.requestDisallowInterceptTouchEvent(true)
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val d = (ev.rawY - downY).coerceIn(-step * 2, step * 2)
-                    bar.translationY = d / 3f
-                    val n = (rows + Math.round(d / step)).coerceIn(1, 4)
-                    label.text = if (n == 1) "1 row" else "$n rows"
-                    true
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    val n = (rows + Math.round((ev.rawY - downY) / step)).coerceIn(1, 4)
-                    bar.translationY = 0f
-                    if (ev.actionMasked == MotionEvent.ACTION_UP && n != rows) {
-                        uiPrefs().edit().putInt(KEY_ROWS, n).apply()
-                        build()
-                    }
-                    true
-                }
-                else -> false
-            }
-        }
-        return holder
-    }
+    // Step 84: the rows bar (resizeBar) was removed: the row count stays at its saved value.
 
     /** What can be put back: the parts taken off with a minus and every button that is not on the panel. Tap one to add it. */
     private fun addControlView(): View {

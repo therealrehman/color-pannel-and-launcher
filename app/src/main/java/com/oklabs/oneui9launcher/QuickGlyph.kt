@@ -239,6 +239,17 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
                 oval.set(cx - s * 0.3f, cy - s * 0.3f, cx + s * 0.3f, cy + s * 0.3f)
                 canvas.drawArc(oval, 90f, 180f, true, paint)
             }
+            HOME_SWITCH -> {
+                stroke(s, 0.075f)
+                val roof = android.graphics.Path()
+                roof.moveTo(cx - s * 0.34f, cy + s * 0.02f)
+                roof.lineTo(cx - s * 0.02f, cy - s * 0.30f)
+                roof.lineTo(cx + s * 0.20f, cy - s * 0.12f)
+                canvas.drawPath(roof, paint)
+                canvas.drawRoundRect(RectF(cx - s * 0.24f, cy - s * 0.02f, cx + s * 0.24f, cy + s * 0.32f), s * 0.04f, s * 0.04f, paint)
+                fill()
+                canvas.drawCircle(cx + s * 0.30f, cy - s * 0.28f, s * 0.12f, paint)
+            }
             GRID -> if (letter != null) {
                 fill()
                 paint.textAlign = Paint.Align.CENTER
@@ -448,6 +459,7 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
         const val NFC = 30
         const val NIGHT = 31
         const val GRID = 32
+        const val HOME_SWITCH = 33 // Step 84: a house with a switch dot: the Quick panel + Home app button
     }
 }
 

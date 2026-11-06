@@ -1076,3 +1076,25 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Version bumped (code 202).
 - Not compiled and not run on a phone. The preview was generated with Python masks (circle, squircle, rounded square) on a green wallpaper; the real launcher may crop slightly differently.
 - **Test:** install, check the home screen and app drawer in one launcher with a circle mask and one with a squircle. The whole control panel should be visible, with no dark edge cut at the corners.
+
+## Step 84 - panel + Home app switch, gradient unlock card, resizer removed
+- **Resizer removed (edit mode):** the rows bar under the buttons and the dashed ghost box with its corner handle are gone. Parts keep their normal size; the
+  minus and Add a control stay. (The ghost never set the layout.)
+- **Quick panel + Home app switch** (new glyph `HOME_SWITCH`, in the header of every Quick panel: the top strip, the Accessibility strip, the home
+  swipe-down panel and the notification panel share it). One tap turns the panel ON and, in the same tap, asks for the Home app (`HomeRoleActivity`,
+  Android's own dialog) when this launcher is not the Home app yet. One tap turns the panel OFF (`PanelHomeSwitch.kt`).
+  Android will not let an app change its Home app silently and cannot take the Home role away from itself: OFF only switches the panel off.
+- **Gradient unlock card** (`UnlockCard.kt`): a real card, not a dialog or a toast. The tapped colour runs across its top with a sparkle, a title, the
+  reason, "Watch ad" (one Huawei rewarded ad, `HuaweiAds`) and "Not now". Opened from Settings > Quick panel and, through `CardActivity` (see-through),
+  from a locked gradient tapped on the panel. The old toast ("Watch one ad in Settings > Quick panel") is gone.
+- **Settings > Quick panel:** a row "Unlock gradient colours" shows the time left, or watches the ad.
+- `ThemeUnlock.kt`: `grant()` replaces the private unlock; `gate()` shows the card. `hoursLeft()` for the Settings line.
+- **Research (why a launcher loses its Home app):** the Home app is a system Role (`RoleManager.ROLE_HOME`, Android 10+). Only the person can set it,
+  in the system dialog. Known causes seen in user reports: the phone maker's own system puts its launcher back after a restart or while idle
+  (vivo/iQOO, Oppo-based ColorOS, Fairphone "keeps asking which launcher"), an Android update's role migration (AOSP "Fix migration for home role"),
+  another app taking the role (Google Dialer / Quickstep reports), a crash of the launcher in the background (the phone falls back to its own launcher),
+  and the person clearing the defaults. `HomeKeeper` (checks on resume, 15-minute check, notification) and this switch cover the first, third and
+  fourth causes by asking again in one tap; a crash and a maker's silent revert cannot be prevented by an app.
+- Version 1.1.4 (code 204). Changed/new: `QuickPanel.kt`, `QuickGlyph.kt`, `HomeSettingsActivity.kt`, `ThemeUnlock.kt`, `PanelHomeSwitch.kt` (new),
+  `UnlockCard.kt` (new), `AndroidManifest.xml` (CardActivity), `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.
+- Step 84 also removed the unused Unity LevelPlay dependency (`com.unity3d.ads-mediation:mediation-sdk`): no source file used it, and it was the source of the earlier CI "Unresolved reference" failures. The ads are Huawei Ads Kit only.

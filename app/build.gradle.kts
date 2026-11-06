@@ -31,8 +31,8 @@ android {
         applicationId = "com.oklabs.oneui9launcher"
         minSdk = 26                       // Android 8.0 and newer
         targetSdk = minOf(sdkApi, 36)   // Google Play: new apps and updates must target API 36
-        versionCode = 203
-        versionName = "1.1.3"
+        versionCode = 204
+        versionName = "1.1.4"
     }
 
     signingConfigs {
@@ -78,10 +78,10 @@ android {
     }
 }
 
-// Step 79a: Unity LevelPlay (Unity Ads) - rewarded ads SDK. Loads over the network the first time it is used;
+// (Step 79a removed in Step 84.)
 // everything else in the app still has no third-party library.
 dependencies {
-    implementation("com.unity3d.ads-mediation:mediation-sdk:9.5.0")
+    // Step 84: the Unity LevelPlay SDK was removed: nothing in this app uses it any more (ads are Huawei Ads Kit only).
     // Lets the SDK read the Google advertising / app-set ID (used for ad targeting and fraud checks only).
     implementation("com.google.android.gms:play-services-appset:16.0.0")
     implementation("com.google.android.gms:play-services-ads-identifier:18.1.0")

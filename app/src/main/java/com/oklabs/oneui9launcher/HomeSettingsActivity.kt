@@ -732,6 +732,16 @@ class HomeSettingsActivity : Activity() {
             }
         )
         kit.note(box, "White glass is the default. It colours the Quick panel and the Notifications page.")
+        kit.card(
+            box,
+            kit.row(
+                -1, 0, "Unlock gradient colours",
+                if (ThemeUnlock.isOpen(this)) "Unlocked: " + ThemeUnlock.hoursLeft(this) + " hours left. Tap to watch one more ad" else "Watch one short ad to unlock every gradient for 12 hours"
+            ) {
+                val first = (0 until PanelTheme.COUNT).firstOrNull { PanelTheme.isGradient(it) } ?: 1
+                UnlockCard.show(this, first, then = { show() })
+            }
+        )
         kit.label(box, "Opening")
         kit.card(
             box,

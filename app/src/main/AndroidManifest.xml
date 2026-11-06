@@ -153,6 +153,14 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- Step 84: the gradient unlock card, opened from the Quick panel (an overlay cannot show a dialog itself). -->
+        <activity
+            android:name=".CardActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- HomeKeeper: the see-through screen that asks Android to make this launcher the Home app (and the Home app settings if the
              question is blocked). Only this app starts it (the Home-app notification and the Settings screen), so it is not exported. -->
         <activity
