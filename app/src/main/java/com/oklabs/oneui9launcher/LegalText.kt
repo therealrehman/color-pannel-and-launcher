@@ -3,13 +3,13 @@ package com.oklabs.oneui9launcher
 import android.content.Context
 
 /**
- * Step 13: the policies as text inside the app, so they can be read without internet (the app has no internet permission).
+ * Step 13: the policies as text inside the app, so they can be read without internet (the app uses the internet only for rewarded ads: see section 2).
  * They say the same as the pages in docs/ (privacy-policy.html, terms.html). When you change one, change the other.
  * {app}, {company} and {email} are replaced with the app name, the developer name and the contact address from strings.xml.
  */
 object LegalText {
 
-    const val EFFECTIVE = "October 31, 2026"
+    const val EFFECTIVE = "November 7, 2026"
 
     class Section(val heading: String, val paragraphs: List<String>)
 
@@ -22,8 +22,8 @@ object LegalText {
         Section(
             "In short",
             listOf(
-                "{app} does not collect, store on any server, share or sell your personal data.",
-                "The app has no account, no analytics, no advertising and no internet permission. Everything it knows stays on your phone."
+                "{app} does not collect, store on any server, share or sell your personal data. Its rewarded ads come from Huawei Ads Kit, which can collect some device data (see section 2).",
+                "The app has no account and no analytics. It uses the internet only to load a rewarded ad when you tap “Watch ad” to unlock gradient colours. Everything the launcher knows about your layout and settings stays on your phone."
             )
         ),
         Section(
@@ -36,8 +36,8 @@ object LegalText {
         Section(
             "2. Data we collect",
             listOf(
-                "None. We do not collect any personal information, device identifiers, location, contacts, messages, photos or usage statistics.",
-                "The app does not request the Android INTERNET permission, so it cannot send data off your phone. We run no servers for the app."
+                "The launcher itself collects none of: personal information, device identifiers, location, contacts, messages, photos or usage statistics.",
+                "The app requests the Android INTERNET permission only so that Huawei Ads Kit can load a rewarded ad. Huawei Ads Kit may send some device and ad data to Huawei when an ad loads, for example an advertising identifier, device model and software version, language, region and network details (see section 5). The launcher sends nothing else, and we run no servers for the app."
             )
         ),
         Section(
@@ -63,7 +63,7 @@ object LegalText {
         Section(
             "5. Sharing",
             listOf(
-                "We do not share, sell or rent any data, because we do not have any. The app contains no advertising or analytics code and no third-party libraries that collect data."
+                "We do not share, sell or rent any data. The app has no analytics code. The rewarded ads come from Huawei Ads Kit, Huawei’s own service: Huawei handles the data it collects under its own privacy policy, available on Huawei’s website. We do not receive that data. On phones without Huawei Mobile Services the ad does not load, and the gradient colours unlock without an ad."
             )
         ),
         Section(
@@ -83,13 +83,13 @@ object LegalText {
         Section(
             "8. Children",
             listOf(
-                "The app is a general-purpose tool and is not directed at children under 13. Because it collects no personal data, it does not knowingly collect any from children."
+                "The app is a general-purpose tool and is not directed at children under 13. Ads are shown only when a person chooses to watch one. We do not knowingly collect personal data from children."
             )
         ),
         Section(
             "9. Security",
             listOf(
-                "Your layout and settings are kept in the app’s private storage, which other apps cannot read on an unmodified Android phone. Nothing is transmitted by the app."
+                "Your layout and settings are kept in the app’s private storage, which other apps cannot read on an unmodified Android phone. Apart from the rewarded ad request described in section 2, nothing is transmitted by the app."
             )
         ),
         Section(
@@ -97,13 +97,14 @@ object LegalText {
             listOf(
                 "Because we hold no personal data about you, there is nothing for us to access, correct or delete. You control everything the app stores: " +
                     "clear it in Android Settings > Apps > {app} > Storage, or uninstall the app.",
+                "You can limit personalised ads in your phone’s own ad settings (the name and place depend on the phone, for example Settings > Privacy or Settings > Security & privacy), and reset your advertising identifier there.",
                 "If you have a privacy question or request, email {email}."
             )
         ),
         Section(
             "11. Changes to this policy",
             listOf(
-                "If the app changes in a way that affects privacy (for example, if a future version ever adds internet features), we will update this policy and the effective date before the change is released."
+                "If the app changes in a way that affects privacy (for example, if a future version adds other ad networks or analytics), we will update this policy and the effective date before the change is released."
             )
         ),
         Section(
@@ -218,7 +219,7 @@ object LegalText {
             "Only if you turn on notification badges or “Notifications in Quick panel”. For badges the app counts how many notifications each app has to draw a dot or a number on its icon. " +
                 "For the Quick panel it shows the app name, title and text of the notifications on your screen, with swipe to remove and tap to open, " +
                 "and what is playing (title, artist, cover) with previous / play / next buttons. " +
-                "This is held in memory only while the notifications are showing: it is never saved, shared or sent anywhere (the app has no internet access). " +
+                "This is held in memory only while the notifications are showing: it is never saved, shared or sent anywhere (the launcher does not send notifications anywhere). " +
                 "You can turn the Quick panel list off in Settings > Gestures, and the access at any time in Android Settings.",
             true
         ),
@@ -298,7 +299,7 @@ object LegalText {
         ),
         Permission(
             "Internet",
-            "Not requested. The app cannot connect to the internet.",
+            "Requested only so that Huawei Ads Kit can load a rewarded ad when you tap “Watch ad”. The launcher itself sends no data.",
             false
         )
     )
@@ -306,7 +307,7 @@ object LegalText {
     val openSource: List<Section> = listOf(
         Section(
             "Code",
-            listOf("{app} is written in Kotlin and uses only the Android platform. It has no third-party libraries, no ads and no analytics.")
+            listOf("{app} is written in Kotlin and uses the Android platform. Its only third-party library is Huawei Ads Kit, used for rewarded ads. It has no analytics.")
         ),
         Section(
             "Icons and artwork",

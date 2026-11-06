@@ -13,7 +13,7 @@ Contact email: a.rehmanmazher11@gmail.com
 - **The Accessibility dialog and the privacy policy now say exactly what the service does** (blur picture in memory, and finding + pressing the phone's own Quick
   settings buttons by name). An old text said "does not read your screen"; reviewers compare the text with the behaviour. Run `bash appgallery.sh prepare` once.
 - App name in the APK is **Ok Launcher** (not "One UI": Samsung's trademark). Keep the listing name identical to it.
-- No Google / HMS libraries inside: nothing to remove for Huawei phones. No ads, no internet permission, no native code (so the APK is 64-bit ready).
+- No Google / HMS libraries inside: nothing to remove for Huawei phones. Ads only through Huawei Ads Kit (rewarded, user-initiated), INTERNET only for those ads, no native code (so the APK is 64-bit ready).
 
 ## 1. Decide these BEFORE the first upload (permanent)
 
@@ -70,11 +70,11 @@ Accessibility switch, double-tap lock. If something works in debug but not in re
 **App name:** Ok Launcher
 
 **Brief introduction (keep under 80 characters):**
-`A clean, fast home screen with folders, widgets and a Quick panel. No ads.`
+`A clean, fast home screen with folders, widgets and a Quick panel.`
 
 **Full description:**
 ```
-A clean, fast, modern home screen for Android - no ads, no account, no tracking.
+A clean, fast, modern home screen for Android - no account, no analytics, no tracking. Rewarded ads only when you choose to watch one.
 
 HOME SCREEN
 - Multi-page grid with three icon sizes, drag and drop, folders by dropping one icon on another
@@ -102,7 +102,7 @@ EXTRAS
 - Back up and restore your layout and settings to a file
 
 PERMISSIONS AND PRIVACY
-The app has no internet permission, collects nothing and shows no ads. Everything stays on your phone.
+The launcher collects nothing. Rewarded ads (only when the user taps “Watch ad” to unlock gradient colours) come from Huawei Ads Kit. Everything stays on your phone.
 The Accessibility service is OPTIONAL. If you switch it on it is used only for the Quick panel: to show the panel when you pull down the status bar, to blur
 the screen behind it (a picture kept in memory only, never saved or sent), and to press the phone's own Quick settings buttons (Wi-Fi, Bluetooth...) for you when you tap
 them in the panel. It does not read your messages, passwords or other apps. The launcher works fully without it.
@@ -123,7 +123,7 @@ Questions? a.rehmanmazher11@gmail.com
 
 ## 6. Privacy tags / data questions (answers that match the app)
 
-The app has no network permission and sends nothing anywhere. Answer "does not collect or share personal information" where the form allows it.
+The launcher sends nothing anywhere. It has the Internet permission only for Huawei Ads Kit rewarded ads, so the answer to “Collect personal data” is YES (the ad SDK collects device and ad data). See the table below.
 If the form asks item by item, the honest answers are:
 
 | Data the app touches | Where it goes |
@@ -133,8 +133,9 @@ If the form asks item by item, the honest answers are:
 | Names and on / off of the phone's Quick settings buttons (optional Accessibility) | read on the device, never saved or uploaded |
 | Screen picture for the blur (optional Accessibility) | kept in memory for a moment, never saved or uploaded |
 | Layout and settings | a file only if YOU back up to a place you choose |
+| Device and ad data (Huawei Ads Kit, when a rewarded ad loads: advertising identifier, device model, software version, region, network details) | Huawei, under Huawei’s own privacy policy |
 
-No ads, no analytics, no advertising ID, no third-party SDK.
+Ads: Huawei Ads Kit (rewarded ads only). Analytics: none. Third-party SDK: Huawei Ads Kit.
 
 ## 7. Content rating
 
@@ -143,7 +144,7 @@ Utility / personalisation. Violence, sexual content, gambling, drugs, user-gener
 ## 8. Notes for the reviewer (paste into the review / remarks field)
 
 ```
-Ok Launcher is a home-screen (launcher) app. Set it as the default Home app to use it. It has no internet permission and sends no data.
+Ok Launcher is a home-screen (launcher) app. Set it as the default Home app to use it. It sends no data itself. The Internet permission is used only by Huawei Ads Kit for rewarded ads that the user chooses to watch.
 Sensitive access, all optional and explained in the app before the system screen opens:
 - Accessibility service (optional, off by default): used only for the Quick panel. It shows the Quick panel when the status bar is pulled down, takes a screen
   picture in memory to blur behind the panel, and, when the user taps a button such as Wi-Fi in our panel, opens the phone's own Quick settings, finds that

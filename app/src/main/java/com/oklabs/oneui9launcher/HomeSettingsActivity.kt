@@ -1288,7 +1288,7 @@ class HomeSettingsActivity : Activity() {
             .setMessage(
                 getString(R.string.app_name) + " needs Notification access to show badges and to list your notifications in the Quick panel. " +
                     "Badges only count the notifications of each app. The Quick panel shows their title and text on the screen, " +
-                    "kept in memory only while they are showing: it never saves or sends them, and the app has no internet access. " +
+                    "kept in memory only while they are showing: it never saves or sends them, and the launcher does not send notifications anywhere. " +
                     "Nothing is shown until you allow it. You can turn it off at any time in the phone's settings."
             )
             .setPositiveButton("Continue") { _, _ -> Badges.openAccessSettings(this) }
@@ -1538,7 +1538,7 @@ class HomeSettingsActivity : Activity() {
     }
 
     private fun permissionsPage(): View = kit.page("Permissions and data use", { goBack() }) { box ->
-        kit.note(box, "What {app} can access on this phone and why. It collects no data and has no internet access.".let { LegalText.fill(this, it) })
+        kit.note(box, "What {app} can access on this phone and why. The launcher collects no data. The internet is used only for rewarded ads you choose to watch (Huawei Ads Kit).".let { LegalText.fill(this, it) })
         kit.label(box, "Always on")
         kit.card(box, *LegalText.visible(this).filter { !it.optional }.map { permissionView(it) }.toTypedArray())
         kit.label(box, "Only if you turn the feature on")

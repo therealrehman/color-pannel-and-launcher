@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy Policy - Glassy launcher - Ok Labs</title>
-<meta name="description" content="Privacy policy of Glassy launcher by Ok Labs: no data is collected.">
+<meta name="description" content="Privacy policy of Glassy launcher by Ok Labs: the launcher collects no data; rewarded ads use Huawei Ads Kit.">
 <style>
 :root{--bg:#fff;--fg:#1c1c1e;--muted:#5f6368;--card:#f4f5f7;--accent:#3b5bdb;--line:#e1e3e8}
 @media (prefers-color-scheme:dark){:root{--bg:#121316;--fg:#ececf0;--muted:#a0a4ad;--card:#1d1f24;--accent:#8fa5ff;--line:#2d3038}}
@@ -29,10 +29,10 @@ footer{margin-top:40px;color:var(--muted);font-size:.9rem}
 <nav><a href="index.html">Home</a><a href="privacy-policy.html">Privacy Policy</a><a href="terms.html">Terms of Use</a><a href="contact.html">Contact</a></nav>
 
 <h1>Privacy Policy</h1>
-<p class="muted">Glassy launcher by Ok Labs &middot; Effective date: October 31, 2026</p>
+<p class="muted">Glassy launcher by Ok Labs &middot; Effective date: November 7, 2026</p>
 
-<div class="card"><strong>In short:</strong> Glassy launcher does not collect, store on any server, share or sell your personal data.
-The app has no account, no analytics, no advertising and no internet permission. Everything it knows stays on your phone.</div>
+<div class="card"><strong>In short:</strong> Glassy launcher does not collect, store on any server, share or sell your personal data. Its rewarded ads come from Huawei Ads Kit, which can collect some device data (see section 2).
+The app has no account and no analytics. It uses the internet only to load a rewarded ad when you tap &ldquo;Watch ad&rdquo; to unlock gradient colours. Everything the launcher knows about your layout and settings stays on your phone.</div>
 <p class="muted">The same text is inside the app (Settings &gt; Privacy policy) and works without internet.</p>
 
 <h2>1. Who we are</h2>
@@ -40,8 +40,8 @@ The app has no account, no analytics, no advertising and no internet permission.
 Contact: <a href="mailto:a.rehmanmazher11@gmail.com">a.rehmanmazher11@gmail.com</a>.</p>
 
 <h2>2. Data we collect</h2>
-<p>None. We do not collect any personal information, device identifiers, location, contacts, messages, photos or usage statistics.
-The app does not request the Android INTERNET permission, so it cannot send data off your phone. We run no servers for the app.</p>
+<p>The launcher itself collects none of: personal information, device identifiers, location, contacts, messages, photos or usage statistics.
+The app requests the Android INTERNET permission only so that Huawei Ads Kit can load a rewarded ad. Huawei Ads Kit may send some device and ad data to Huawei when an ad loads, for example an advertising identifier, device model and software version, language, region and network details (see section 5). The launcher sends nothing else, and we run no servers for the app.</p>
 
 <h2>3. Data kept on your phone</h2>
 <p>To work, the app saves the following in its private storage on your phone only:</p>
@@ -60,7 +60,7 @@ depending on your phone&rsquo;s settings. That is handled by Android and Google,
 <table>
 <tr><th>Permission / access</th><th>Why the app needs it</th></tr>
 <tr><td>Seeing installed apps (queries for launchable apps)</td><td>To show your apps on the Home screen and the Apps screen, and to find the default Phone, Messages, Browser, Camera and Settings apps. The list is used on the phone only.</td></tr>
-<tr><td>Notification access (optional)</td><td>Only if you turn on notification badges or &ldquo;Notifications in Quick panel&rdquo;. For badges the app counts how many notifications each app has to draw a dot or a number on its icon. For the Quick panel it shows the app name, title and text of the notifications on your screen, with swipe to remove and tap to open, and what is playing (title, artist, cover) with previous / play / next buttons. This is held in memory only while the notifications are showing: it is never saved, shared or sent anywhere (the app has no internet access). Ongoing notifications and group summaries are not counted or listed. You can turn the Quick panel list off in Settings &gt; Gestures, and the access at any time in Android Settings.</td></tr>
+<tr><td>Notification access (optional)</td><td>Only if you turn on notification badges or &ldquo;Notifications in Quick panel&rdquo;. For badges the app counts how many notifications each app has to draw a dot or a number on its icon. For the Quick panel it shows the app name, title and text of the notifications on your screen, with swipe to remove and tap to open, and what is playing (title, artist, cover) with previous / play / next buttons. This is held in memory only while the notifications are showing: it is never saved, shared or sent anywhere (the launcher does not send notifications anywhere). Ongoing notifications and group summaries are not counted or listed. You can turn the Quick panel list off in Settings &gt; Gestures, and the access at any time in Android Settings.</td></tr>
 <tr><td>Accessibility service (optional; not in the Huawei AppGallery build)</td><td>Only if you turn on &ldquo;Open in every app&rdquo; in Settings &gt; Quick panel. The service listens only for &ldquo;a window changed&rdquo; events and places an invisible bar over the status bar to catch a pull-down, then shows this app&rsquo;s Quick panel instead of the phone&rsquo;s own panel. It takes a picture of the screen only to blur it behind the panel; the picture stays in memory for a moment and is never saved or sent. It cannot read the text or content of other apps, and nothing is saved, shared or sent anywhere. Switch it off in Android Settings &gt; Accessibility.</td></tr>
 <tr><td>Display over other apps, foreground service, notification, start after restart (optional)</td><td>Only if you turn on &ldquo;Quick panel over other apps&rdquo; in Settings &gt; Quick panel. &ldquo;Draw over other apps&rdquo; lets the app draw its Quick panel, a thin top handle and a floating button over the app you are using. A small foreground service keeps them ready and shows one quiet notification (tap it to open the panel). The app can start this service again after the phone restarts or after the phone stopped it (boot-completed message and alarms). Nothing on the screen is read, and nothing is saved, shared or sent. Switch it off in the same Settings screen.</td></tr>
 <tr><td>Seeing Quick Settings tiles of installed apps (optional)</td><td>Only to let you add them as buttons on the Quick panel (Settings &gt; Quick panel &gt; Phone buttons); the list is used on the phone only. The first time the Quick panel opens, up to 8 of these tiles are added as buttons by themselves (remove them in Edit). The phone&rsquo;s own tile list (a system setting) is read once at that moment, and again only when you tap &ldquo;Match my phone&rsquo;s panel&rdquo; or &ldquo;Show the phone&rsquo;s tile list&rdquo;; it is never stored beyond the buttons on the panel and never sent anywhere. These buttons only open a phone screen or an app.</td></tr>
@@ -74,10 +74,11 @@ depending on your phone&rsquo;s settings. That is handled by Android and Google,
 <tr><td>Modify system settings</td><td>Only when you move the brightness slider or tap Auto rotate on the Quick panel. Android asks you to allow it once in its own screen. The app changes nothing else.</td></tr>
 <tr><td>Do not disturb access</td><td>Only when you tap Do not disturb or Mute on the Quick panel. Android asks you to allow it once in its own screen. The app does not read your notifications for this.</td></tr>
 <tr><td>Widgets</td><td>The app can host widgets from other apps and has its own clock and date widgets. Widgets from other apps are drawn by those apps and follow their own privacy policies.</td></tr>
+<tr><td>Internet (ads only)</td><td>Only so that Huawei Ads Kit can load a rewarded ad when you tap &ldquo;Watch ad&rdquo; to unlock gradient colours. The launcher itself sends no data.</td></tr>
 </table>
 
 <h2>5. Sharing</h2>
-<p>We do not share, sell or rent any data, because we do not have any. The app contains no advertising or analytics code and no third-party libraries that collect data.</p>
+<p>We do not share, sell or rent any data. The app has no analytics code. The rewarded ads come from Huawei Ads Kit, Huawei’s own service: Huawei handles the data it collects under its own privacy policy, available on Huawei’s website. We do not receive that data. On phones without Huawei Mobile Services the ad does not load, and the gradient colours unlock without an ad.</p>
 
 <h2>6. Contacting us</h2>
 <p>In the app, Settings &gt; Contact us has &ldquo;Email us&rdquo;, &ldquo;Report a problem&rdquo; and &ldquo;Privacy question or request&rdquo;. They open <em>your own</em> email app with a message to
@@ -88,17 +89,17 @@ depending on your phone&rsquo;s settings. That is handled by Android and Google,
 <p>When you open an app from the launcher, or a link such as this policy, that app or your browser takes over and its own privacy practices apply.</p>
 
 <h2>8. Children</h2>
-<p>The app is a general-purpose tool and is not directed at children under 13. Because it collects no personal data, it does not knowingly collect any from children.</p>
+<p>The app is a general-purpose tool and is not directed at children under 13. Ads are shown only when a person chooses to watch one. We do not knowingly collect personal data from children.</p>
 
 <h2>9. Security</h2>
-<p>Your layout and settings are kept in the app&rsquo;s private storage, which other apps cannot read on an unmodified Android phone. Nothing is transmitted by the app.</p>
+<p>Your layout and settings are kept in the app&rsquo;s private storage, which other apps cannot read on an unmodified Android phone. Apart from the rewarded ad request described in section 2, nothing is transmitted by the app.</p>
 
 <h2>10. Your rights and choices</h2>
-<p>Because we hold no personal data about you, there is nothing for us to access, correct or delete. You control everything the app stores: clear it in Android Settings &gt; Apps &gt; Glassy launcher &gt; Storage, or uninstall the app.
+<p>Because we hold no personal data about you, there is nothing for us to access, correct or delete. You control everything the app stores: clear it in Android Settings &gt; Apps &gt; Glassy launcher &gt; Storage, or uninstall the app. You can limit personalised ads in your phone’s own ad settings (the name and place depend on the phone, for example Settings &gt; Privacy or Settings &gt; Security &amp; privacy), and reset your advertising identifier there.
 If you have a privacy question or request, email <a href="mailto:a.rehmanmazher11@gmail.com">a.rehmanmazher11@gmail.com</a>.</p>
 
 <h2>11. Changes to this policy</h2>
-<p>If the app changes in a way that affects privacy (for example, if a future version ever adds internet features), we will update this page and the effective date above before the change is released.</p>
+<p>If the app changes in a way that affects privacy (for example, if a future version adds other ad networks or analytics), we will update this page and the effective date above before the change is released.</p>
 
 <h2>12. Contact</h2>
 <p>Ok Labs<br>Email: <a href="mailto:a.rehmanmazher11@gmail.com">a.rehmanmazher11@gmail.com</a></p>

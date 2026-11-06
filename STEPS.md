@@ -1123,3 +1123,12 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - The house button in the Quick panel header (Step 84, the panel + Home app switch) is removed.
 - Kept: the "Quick panel over other apps" switch, the Draw over other apps permission, the unlock card and the test / real ad slots (Step 86).
 - Version 1.1.7 (code 207). Changed: `QuickPanel.kt`, `HomeSettingsActivity.kt`, `FloatingButton.kt`, `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.
+
+## Step 89 - privacy policy matched to the app (rewarded ads, INTERNET)
+- The policy said "no internet, no advertising, no third-party SDK, no data collected", but the app requests INTERNET and shows rewarded ads through Huawei Ads Kit (since step 79).
+  Corrected in `LegalText.kt` (in-app text, Settings > Privacy policy) and `docs/privacy-policy.html` (web page). Effective date: November 7, 2026.
+  Changes: the launcher itself collects nothing; Huawei Ads Kit may send device and ad data when a rewarded ad loads; INTERNET is requested only for those ads; ad choices on the phone; children; sharing.
+- Permissions list: "Internet (ads only)" line added to the in-app list and to the web table.
+- Store notes: `docs/APPGALLERY.md` section 4 (store text), 6 (privacy answers: Collect personal data = YES, with the ad data row), and 8 (reviewer note).
+- Note: this build is the Step 87 code (Huawei ads only). Google AdMob (Step 88) is not in this zip.
+- Version 1.1.8 (code 208). Changed: `LegalText.kt`, `docs/privacy-policy.html`, `docs/APPGALLERY.md`, `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.
