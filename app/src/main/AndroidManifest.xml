@@ -150,6 +150,14 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- HomeKeeper: the see-through screen that asks Android to make this launcher the Home app (and the Home app settings if the
+             question is blocked). Only this app starts it (the Home-app notification and the Settings screen), so it is not exported. -->
+        <activity
+            android:name=".HomeRoleActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- Step 52: the "Quick panel" tile for the phone's Quick Settings. -->
         <service
             android:name=".PanelTileService"
