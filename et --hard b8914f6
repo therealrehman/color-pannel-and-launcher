@@ -1,0 +1,59 @@
+[33mde15dd4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{0}: reset: moving to de15dd4
+[33me5ef3c1[m HEAD@{1}: commit: Push only color-pannel-fixed folder
+[33mde15dd4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{2}: reset: moving to de15dd4
+[33mde15dd4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{3}: reset: moving to de15dd4
+[33m1dc8a89[m HEAD@{4}: commit: Push only color-pannel-fixed folder from color-pannel-fixed (2).zip
+[33mde15dd4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{5}: reset: moving to de15dd4
+[33m9aa42a5[m HEAD@{6}: commit: Force add LevelPlay SDK dependency
+[33mb8914f6[m HEAD@{7}: commit: Push fixed (1) zip to color panel repo
+[33mde15dd4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{8}: reset: moving to de15dd4
+[33mb3db219[m HEAD@{9}: commit: Push fixed zip to new repo
+[33ma0f227c[m HEAD@{10}: commit: Restore github workflows folder
+[33m7723b35[m HEAD@{11}: commit: Force trigger new build
+[33m774f861[m HEAD@{12}: commit: 100% Force Replace all files
+[33me31a458[m HEAD@{13}: commit: 100% Force Replace with fixed.zip content
+[33m9b1d74d[m HEAD@{14}: commit: Replace with fixed (1) folder content
+[33mc815cd6[m HEAD@{15}: commit: Force add LevelPlay SDK
+[33m7c0424d[m HEAD@{16}: commit: Clean and push actual root files
+[33mc423b7d[m HEAD@{17}: commit: Fix nested folder structure perfectly
+[33ma4f0db2[m HEAD@{18}: commit: Add fixed zip from saved shares
+[33m0f72a9c[m HEAD@{19}: commit: Add fixed 1
+[33m621a175[m HEAD@{20}: commit: Add color pannel step83 banner fix
+[33mafb767e[m HEAD@{21}: commit: Force update Ads.kt and build.gradle
+[33m9da14ce[m HEAD@{22}: commit: Add banner fix and remove duplicate folder
+[33m998b916[m HEAD@{23}: commit: Add color pannel step82 banner fix
+[33m6c4ea33[m HEAD@{24}: commit: Add ColorPanel step81 ghost resize fix
+[33m7038f69[m HEAD@{25}: commit: Add color pannel fixed
+[33m6329617[m HEAD@{26}: commit: Add color pannel and launcher main 4
+[33maf492d0[m HEAD@{27}: reset: moving to af492d0
+[33m69d6b4b[m HEAD@{28}: commit: Add ColorPanel step81 ghost resize fix
+[33m5abbbc5[m HEAD@{29}: commit: Add color pannel and launcher main 4
+[33m74c9b97[m HEAD@{30}: commit: Add color pannel fixed
+[33maf492d0[m HEAD@{31}: reset: moving to HEAD~1
+[33ma49cdb5[m HEAD@{32}: commit: Set all new app updates perfectly
+[33maf492d0[m HEAD@{33}: commit: Add ColorPanel step81 ghost resize fix
+[33m855059a[m HEAD@{34}: commit: Add color pannel and launcher main 4
+[33m2db62ac[m HEAD@{35}: commit: Add color pannel fixed
+[33m145d691[m HEAD@{36}: commit: Fix out2 structure
+[33ma3c9601[m HEAD@{37}: commit: Add ColorPanel v1.1.0 final
+[33mde15dd4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{38}: commit: Quick panel: wallpaper syncs with panel colour, smoother timing
+[33mcfc285a[m HEAD@{39}: commit: Quick panel: smoother timing/fade (UI9), wallpaper syncs with panel colour
+[33mfdadae0[m HEAD@{40}: commit: Add OkLauncher signing fix
+[33m6678991[m HEAD@{41}: commit: Add ColorPanel step80
+[33m235642b[m HEAD@{42}: rebase (abort): returning to refs/heads/main
+[33md40ed72[m HEAD@{43}: commit: Add ColorPanel step80
+[33m108bb01[m HEAD@{44}: reset: moving to 108bb01
+[33m2126eb5[m HEAD@{45}: commit: Ok Launcher 1.0.49
+[33m81a509b[m HEAD@{46}: pull --rebase origin main (start): checkout 81a509bee986df0910c8832429e60aaacb3f9925
+[33m235642b[m HEAD@{47}: Branch: renamed refs/heads/main to refs/heads/main
+[33m235642b[m HEAD@{49}: commit: Ok Launcher 1.0.49
+[33mba3487c[m HEAD@{50}: reset: moving to ba3487cb585165e4cccd6b13fa6db42276025fc4
+[33m1579bf4[m[33m ([m[1;32mbackup-before-reset[m[33m)[m HEAD@{51}: Branch: renamed refs/heads/main to refs/heads/main
+[33m1579bf4[m[33m ([m[1;32mbackup-before-reset[m[33m)[m HEAD@{53}: commit: Ok Launcher 1.0.57
+[33m8d8b933[m HEAD@{54}: Branch: renamed refs/heads/main to refs/heads/main
+[33m8d8b933[m HEAD@{56}: commit: Ok Launcher 1.0.57
+[33m5c305b5[m HEAD@{57}: Branch: renamed refs/heads/main to refs/heads/main
+[33m5c305b5[m HEAD@{59}: commit: Ok Launcher 1.0.56
+[33m7a3e5f0[m HEAD@{60}: Branch: renamed refs/heads/main to refs/heads/main
+[33m7a3e5f0[m HEAD@{62}: commit: Ok Launcher 1.0.56
+[33m63ffa7a[m HEAD@{63}: clone: from https://github.com/therealrehman/Ui9.git

@@ -46,10 +46,7 @@ object QuickTiles {
         QuickTileDef("cast", "Screen cast", QuickGlyph.CAST),
         QuickTileDef("camera", "Camera", QuickGlyph.CAMERA),
         QuickTileDef("nfc", "NFC", QuickGlyph.NFC),
-        QuickTileDef("night", "Night light", QuickGlyph.NIGHT),
-        // Fix: a one-tap way to re-open Android's "Home app" question when the phone has put its own launcher
-        // back (common after a restart). Shown lit while this launcher IS the Home app; tap when it is not fixes it.
-        QuickTileDef("home", "Default launcher", QuickGlyph.HOME)
+        QuickTileDef("night", "Night light", QuickGlyph.NIGHT)
     )
 
     /** Step 27: buttons found in the phone's own Quick settings that the launcher has no built-in button for (Speed up, Record screen, vivoshare...). */
@@ -126,7 +123,7 @@ object QuickTiles {
 
     /** What a fresh install shows (the first ten); the other buttons wait under "Available buttons" in the editor. */
     val DEFAULT_ORDER: List<String> =
-        listOf("home", "wifi", "bluetooth", "data", "airplane", "sound", "torch", "rotate", "dnd", "location", "hotspot")
+        listOf("wifi", "bluetooth", "data", "airplane", "sound", "torch", "rotate", "dnd", "location", "hotspot")
 
     /** The panel must keep at least this many buttons. */
     const val MIN_BUTTONS = 6
@@ -176,17 +173,10 @@ object QuickTiles {
             ids = ids + ALL.map { it.id }.filter { it !in ids }
             prefs.edit().putString(KEY, ids.joinToString(",")).putBoolean(KEY_ALL, true).apply()
         }
-        // Fix: the new "Default launcher" tile is added to the front for everyone who installed before it
-        // existed too, switched on by default, not just fresh installs.
-        if (!prefs.getBoolean(KEY_HOME_TILE, false)) {
-            if ("home" !in ids) ids = listOf("home") + ids
-            prefs.edit().putString(KEY, ids.joinToString(",")).putBoolean(KEY_HOME_TILE, true).apply()
-        }
         return ids.mapNotNull { def(it) }
     }
 
     private const val KEY_ALL = "qp_tiles_all26"
-    private const val KEY_HOME_TILE = "qp_home_tile_added"
 
     fun save(context: Context, ids: List<String>) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, ids.joinToString(",")).apply()
@@ -311,10 +301,6 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
                 val on = filter != NotificationManager.INTERRUPTION_FILTER_ALL && filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
                 TileState(on, if (on) "On" else "Off", QuickGlyph.DND)
             }
-            "home" -> {
-                val on = HomeKeeper.isDefault(app)
-                TileState(on, if (on) "Default" else "Tap to fix", QuickGlyph.HOME)
-            }
             "location" -> {
                 val on = locationOn()
                 TileState(on, if (on) "On" else "Off", QuickGlyph.LOCATION)
@@ -426,18 +412,6 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
             "torch" -> toggleTorch()
             "camera" -> {
                 open(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
-                onLeave?.invoke()
-            }
-            "home" -> {
-                if (HomeKeeper.isDefault(app)) {
-                    say("Already your Home app")
-                } else {
-                    try {
-                        app.startActivity(Intent(app, HomeRoleActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    } catch (e: Exception) {
-                        say("Could not open the Home app question")
-                    }
-                }
                 onLeave?.invoke()
             }
             "rotate" -> if (Settings.System.canWrite(app)) toggleRotate() else force(id)
@@ -601,7 +575,6 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
             return
         }
         when (id) {
-            "home" -> open(Settings.ACTION_HOME_SETTINGS)
             "wifi" -> open(Settings.ACTION_WIFI_SETTINGS)
             "bluetooth" -> open(Settings.ACTION_BLUETOOTH_SETTINGS)
             "data" -> open(Settings.ACTION_DATA_ROAMING_SETTINGS)

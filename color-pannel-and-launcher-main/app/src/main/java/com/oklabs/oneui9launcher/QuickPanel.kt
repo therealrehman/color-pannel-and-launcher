@@ -657,7 +657,7 @@ class QuickPanel(
             body.maxPx = ((context.resources.displayMetrics.heightPixels * 0.80f).toInt() - bottom - context.dp(54)).coerceAtLeast(context.dp(200))
             return
         }
-        content.setPadding(0, 0, 0, 0)
+        applyEditPadding()
         // Step 22a: the panel ends right above the navigation bar (no empty strip under it).
         card.setPadding(context.dp(18), top + context.dp(12), context.dp(18), bottom + context.dp(10))
         // the panel never grows past the screen: below this it scrolls
@@ -666,8 +666,19 @@ class QuickPanel(
 
     // ------------------------------------------------------------------ building
 
+    /**
+     * Edit mode: the red minus badges stick out over the corner of their part. In the full-height panel the content had no padding,
+     * so the scroll view cut those badges off at its top and left edge. The room is only added in edit mode (the sheet already has padding).
+     */
+    private fun applyEditPadding() {
+        if (sheetMode) return
+        val p = if (layoutEdit) context.dp(12) else 0
+        content.setPadding(p, p, p, 0)
+    }
+
     private fun build() {
         content.removeAllViews()
+        applyEditPadding()
         tiles.clear()
         val c = context
         val order = QuickTiles.order(c)
@@ -1207,6 +1218,7 @@ class QuickPanel(
         var viewH = 1
         var newH = 100
         var newW = 100
+        var sizeReady = false
         handle.setOnTouchListener { v, ev ->
             when (ev.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -1215,24 +1227,47 @@ class QuickPanel(
                     downY = ev.rawY
                     startH = QuickSize.pct(c, part)
                     startW = QuickSize.wpct(c, part)
-                    viewW = max(1, box.width)
-                    viewH = max(1, box.height)
                     newH = startH
                     newW = startW
+                    // Step 81: box.width/box.height read 0 the first time this box's window has not finished its
+                    // first layout pass yet (this happens specifically the first time the Accessibility panel's own
+                    // window opens; that window lays out separately from, and slower than, the strip panel's
+                    // window). The old fallback (max(1, box.width)) then divided the drag math by 1 instead of the
+                    // box's real size, so the ghost box jumped/snapped on the very first finger movement.
+                    // Fix: do not guess a size. If it is not known yet, wait for one real layout pass and ignore
+                    // ACTION_MOVE until then, so the ghost never moves against a wrong reference size.
+                    if (box.width > 0 && box.height > 0) {
+                        viewW = box.width
+                        viewH = box.height
+                        sizeReady = true
+                    } else {
+                        sizeReady = false
+                        box.post {
+                            if (box.width > 0 && box.height > 0) {
+                                viewW = box.width
+                                viewH = box.height
+                                sizeReady = true
+                            }
+                        }
+                    }
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    if (!sizeReady) return@setOnTouchListener true // Step 81: box not laid out yet, ignore this move rather than guess
                     val dx = ev.rawX - downX
                     val dy = ev.rawY - downY
                     if (withWidth) {
                         newH = (startH * (viewH + dy) / viewH).toInt().coerceIn(QuickSize.MIN, QuickSize.MAX)
                         newW = (startW * (viewW + 2f * dx) / viewW).toInt().coerceIn(QuickSize.W_MIN, QuickSize.W_MAX)
-                        ghostLp.width = (viewW * newW / startW.toFloat()).toInt()
                     } else {
                         newH = (startH * (viewH + (dx + dy) / 2f) / viewH).toInt().coerceIn(QuickSize.MIN, QuickSize.MAX)
                     }
-                    ghostLp.height = (viewH * newH / startH.toFloat()).toInt()
-                    ghost.layoutParams = ghostLp
+                    // Show the new size by SCALING the dashed ghost, not by changing its layout height. Changing the layout height
+                    // made the whole part grow with the finger: the dashed box and the handle ran down the panel and the other parts
+                    // were pushed out of view. Scaling leaves the layout alone.
+                    ghost.pivotY = 0f
+                    ghost.scaleY = newH / startH.toFloat()
+                    ghost.scaleX = if (withWidth) newW / startW.toFloat() else 1f
                     true
                 }
                 MotionEvent.ACTION_UP -> {
@@ -1241,9 +1276,8 @@ class QuickPanel(
                     true
                 }
                 MotionEvent.ACTION_CANCEL -> {
-                    ghostLp.width = MATCH
-                    ghostLp.height = MATCH
-                    ghost.layoutParams = ghostLp
+                    ghost.scaleX = 1f
+                    ghost.scaleY = 1f
                     true
                 }
                 else -> true

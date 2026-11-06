@@ -54,9 +54,6 @@ object PanelTheme {
     const val KEY = "qp_theme"
     const val COUNT = 21
 
-    /** Step 79b: numbers 0 (white glass) to 5 (the five solids) are always free; 6..20 (the gradients) need [Unlock.isUnlocked]. */
-    const val FREE_COUNT = 6
-
     private class Solid(val name: String, val rgb: Int)
 
     private val solids = listOf(

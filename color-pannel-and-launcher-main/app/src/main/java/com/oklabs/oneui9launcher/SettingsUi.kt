@@ -571,7 +571,6 @@ internal class SettingsKit(private val ctx: Context) {
         val row = LinearLayout(ctx)
         row.orientation = LinearLayout.HORIZONTAL
         val dots = ArrayList<View>()
-        val locks = ArrayList<TextView>()
         fun paintAll(current: Int) {
             name.text = PanelTheme.name(current)
             for ((i, view) in dots.withIndex()) {
@@ -580,58 +579,20 @@ internal class SettingsKit(private val ctx: Context) {
                 view.background = shape
             }
         }
-        fun refreshLocks() {
-            for ((i, lock) in locks.withIndex()) {
-                lock.visibility = if (i >= PanelTheme.FREE_COUNT && !Unlock.isUnlocked(ctx)) View.VISIBLE else View.GONE
-            }
-        }
         for (i in 0 until PanelTheme.COUNT) {
-            val cell = FrameLayout(ctx)
             val dot = View(ctx)
             dot.isClickable = true
             dot.contentDescription = PanelTheme.name(i)
-            // Step 79b: the lock badge shown over a gradient dot until today's 2 rewarded ads are watched.
-            val lock = TextView(ctx)
-            lock.text = "\uD83D\uDD12" // lock emoji - drawn by the system font, no image asset
-            lock.gravity = Gravity.CENTER
-            lock.setTextColor(Color.WHITE)
-            lock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-            lock.isClickable = false
             dot.setOnClickListener {
-                val locked = i >= PanelTheme.FREE_COUNT && !Unlock.isUnlocked(ctx)
-                if (!locked) {
-                    paintAll(i)
-                    onPick(i)
-                    return@setOnClickListener
-                }
-                val activity = ctx as? android.app.Activity
-                if (activity == null) return@setOnClickListener
-                // Ads.requestRewarded shows a rewarded ad if one is ready; if none is available
-                // (no fill) it still calls back here after a short wait, so the gradients are
-                // never stuck locked just because no ad came through.
-                Ads.requestRewarded(activity) {
-                    Unlock.onAdWatched(ctx)
-                    if (Unlock.isUnlocked(ctx)) {
-                        android.widget.Toast.makeText(ctx, "Gradients unlocked for today", android.widget.Toast.LENGTH_SHORT).show()
-                        refreshLocks()
-                        paintAll(i)
-                        onPick(i)
-                    } else {
-                        val left = Unlock.adsNeeded(ctx)
-                        android.widget.Toast.makeText(ctx, "Watch $left more ad" + (if (left == 1) "" else "s") + " to unlock", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
+                paintAll(i)
+                onPick(i)
             }
-            cell.addView(dot, FrameLayout.LayoutParams(dp(36), dp(36)))
-            cell.addView(lock, FrameLayout.LayoutParams(dp(36), dp(36)))
             val lp = LinearLayout.LayoutParams(dp(36), dp(36))
             lp.rightMargin = dp(12)
-            row.addView(cell, lp)
+            row.addView(dot, lp)
             dots.add(dot)
-            locks.add(lock)
         }
         paintAll(selected)
-        refreshLocks()
         val scroller = android.widget.HorizontalScrollView(ctx)
         scroller.isHorizontalScrollBarEnabled = false
         scroller.addView(row)

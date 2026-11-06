@@ -298,18 +298,15 @@ object LegalText {
         ),
         Permission(
             "Internet",
-            "Used only to load and show the optional rewarded ad that unlocks the panel gradients for the day (Unity LevelPlay). The app does not connect to the internet for anything else.",
-            true
+            "Not requested. The app cannot connect to the internet.",
+            false
         )
     )
 
     val openSource: List<Section> = listOf(
         Section(
             "Code",
-            listOf(
-                "{app} is written in Kotlin and uses only the Android platform, with one exception: Unity LevelPlay (Unity Ads), used only to show the optional rewarded ad that unlocks the panel gradients for the day. " +
-                    "The app has no analytics and shows no other ads."
-            )
+            listOf("{app} is written in Kotlin and uses only the Android platform. It has no third-party libraries, no ads and no analytics.")
         ),
         Section(
             "Icons and artwork",
