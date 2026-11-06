@@ -8,7 +8,7 @@ buildscript {
         // Huawei AppGallery Connect plugin. The app applies it only when agconnect-services.json exists (see app/build.gradle.kts).
         // agcp looks for the Android Gradle Plugin in the root buildscript classpath, so it must be listed here too (same version as the plugins block below).
         classpath("com.android.tools.build:gradle:8.7.3")
-        classpath("com.huawei.agconnect:agcp:1.6.0.300")
+        classpath("com.huawei.agconnect:agcp:1.9.1.301")
     }
 }
 

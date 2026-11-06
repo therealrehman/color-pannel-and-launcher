@@ -89,5 +89,5 @@ dependencies {
 
     // Huawei Ads Kit (AppGallery build). Ads only load when HMS Core is on the phone; otherwise the app unlocks the gradients anyway.
     implementation("com.huawei.hms:ads-lite:13.4.54.302")
-    implementation("com.huawei.agconnect:agconnect-core:1.6.0.300")
+    implementation("com.huawei.agconnect:agconnect-core:1.9.1.301")
 }
