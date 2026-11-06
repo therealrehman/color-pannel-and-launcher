@@ -77,10 +77,17 @@ object PanelTheme {
     }
 
     fun load(context: Context) {
-        index = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY, 0).coerceIn(0, COUNT - 1)
+        index = saved(context)
     }
 
-    fun saved(context: Context): Int = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY, 0).coerceIn(0, COUNT - 1)
+    /** The colour in use. A gradient falls back to white glass while its 12-hour ad unlock is not running (the saved choice is kept). */
+    fun saved(context: Context): Int {
+        val i = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY, 0).coerceIn(0, COUNT - 1)
+        return if (ThemeUnlock.blocks(context, i)) 0 else i
+    }
+
+    /** True for the gradient colours (they are the ones behind the rewarded-ad lock). */
+    fun isGradient(i: Int): Boolean = i > solids.size
 
     fun name(i: Int): String = when {
         i == 0 -> "White glass"

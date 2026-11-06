@@ -6,6 +6,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// Huawei AppGallery Connect: applied only when agconnect-services.json is in the app folder (download it from AppGallery Connect,
+// App information). Without the file the build still works, and the Huawei ads fall back to "unlock" (see ThemeUnlock).
+if (file("agconnect-services.json").exists()) apply(plugin = "com.huawei.agconnect")
+
 // Step 10d: release signing. release.sh creates keystore.properties (+ the .jks) the first time.
 // Cloud builds can use the RELEASE_STORE_FILE / _PASSWORD / RELEASE_KEY_ALIAS / _PASSWORD environment variables instead.
 val keystoreProps = Properties().apply {
@@ -27,8 +31,8 @@ android {
         applicationId = "com.oklabs.oneui9launcher"
         minSdk = 26                       // Android 8.0 and newer
         targetSdk = minOf(sdkApi, 36)   // Google Play: new apps and updates must target API 36
-        versionCode = 202
-        versionName = "1.1.2"
+        versionCode = 203
+        versionName = "1.1.3"
     }
 
     signingConfigs {
@@ -82,4 +86,8 @@ dependencies {
     implementation("com.google.android.gms:play-services-appset:16.0.0")
     implementation("com.google.android.gms:play-services-ads-identifier:18.1.0")
     implementation("com.google.android.gms:play-services-basement:18.1.0")
+
+    // Huawei Ads Kit (AppGallery build). Ads only load when HMS Core is on the phone; otherwise the app unlocks the gradients anyway.
+    implementation("com.huawei.hms:ads-lite:13.4.54.302")
+    implementation("com.huawei.agconnect:agconnect-core:1.6.0.300")
 }

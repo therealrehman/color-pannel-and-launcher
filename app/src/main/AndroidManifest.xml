@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Huawei Ads Kit (rewarded ad that unlocks the gradient panel colours) needs the network. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Lets the quick menu start the system "Uninstall app?" dialog (Android 9+ needs this). -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 

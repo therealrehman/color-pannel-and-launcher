@@ -1118,6 +1118,10 @@ class QuickPanel(
     }
 
     private fun chooseColour(i: Int) {
+        if (ThemeUnlock.blocks(context, i)) {
+            android.widget.Toast.makeText(context, "Gradients are locked. Watch one ad in Settings > Quick panel to unlock them for 12 hours.", android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.KEY, i).apply()
         PanelTheme.load(context)
         PanelTheme.syncWallpaper(context, i) // Step 62b

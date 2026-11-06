@@ -10,3 +10,8 @@
 # Readable crash traces (file + line) while class names stay shortened.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# Huawei Ads Kit / AppGallery Connect
+-dontwarn com.huawei.**
+-keep class com.huawei.hms.ads.** { *; }
+-keep class com.huawei.agconnect.** { *; }

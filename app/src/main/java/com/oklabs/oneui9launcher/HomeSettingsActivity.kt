@@ -717,9 +717,11 @@ class HomeSettingsActivity : Activity() {
         kit.card(
             box,
             kit.panelThemeDots("Panel colour", PanelTheme.saved(this)) { i ->
-                prefs().edit().putInt(PanelTheme.KEY, i).apply()
-                PanelTheme.load(this)
-                PanelTheme.syncWallpaper(this, i)
+                ThemeUnlock.gate(this, i) {
+                    prefs().edit().putInt(PanelTheme.KEY, i).apply()
+                    PanelTheme.load(this)
+                    PanelTheme.syncWallpaper(this, i)
+                }
             },
             kit.chips("Wallpaper set on", listOf("Home", "Lock", "Both"), prefs().getInt(PanelTheme.KEY_WP_TARGET, 2)) { wpTarget = it; prefs().edit().putInt(PanelTheme.KEY_WP_TARGET, it).apply() },
             kit.row(-1, 0, "Wallpaper in this panel colour", "Makes a wallpaper of the same colour as the panel (" + PanelTheme.name(PanelTheme.saved(this)) + ")") {
