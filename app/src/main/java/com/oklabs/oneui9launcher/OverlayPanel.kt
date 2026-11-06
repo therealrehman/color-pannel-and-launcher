@@ -35,6 +35,9 @@ import android.widget.Toast
  * so the phone's own status bar can not be replaced: the panel is opened from our own handle / button / tile, not from the status bar itself.
  */
 object OverlayPanel {
+    /** True while the Quick panel is on the screen (set by the service when it shows and hides the panel). */
+    @Volatile var panelShowing = false
+
 
     /** The master switch ("Quick panel over other apps"). */
     const val PREF_ON = "op_on"
@@ -381,18 +384,21 @@ class PanelOverlayService : Service() {
             removeHandle() // the panel covers the strip while it is open
             removeButton()
             wm.addView(built.host, params)
+            OverlayPanel.panelShowing = true
             built.host.applyFallbackInsets()
             built.host.coverNavigationBar() // Step 61
             if (startOnNotifs) built.notifs.open() else built.quick.open()
             built.host.requestFocus()
         } catch (e: Exception) {
             frame = null
+            OverlayPanel.panelShowing = false
         }
     }
 
     fun hidePanel() {
         val host = frame ?: return
         frame = null
+        OverlayPanel.panelShowing = false
         try {
             (getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeViewImmediate(host)
         } catch (e: Exception) {

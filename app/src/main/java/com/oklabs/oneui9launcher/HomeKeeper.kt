@@ -24,7 +24,7 @@ object HomeKeeper {
     private const val PREF_LAST_AUTO = "hk_last_auto"
     private const val CHANNEL = "home_keeper"
     private const val NOTE_ID = 4712
-    private const val AUTO_GAP_MS = 3 * 60 * 1000L
+    private const val AUTO_GAP_MS = 20 * 60 * 1000L // documented: at most every 20 minutes
     private const val PREF_LOG = "hk_log"
     private const val PREF_WAS = "hk_was_default"
 
@@ -93,7 +93,8 @@ object HomeKeeper {
                 return
             }
             showNotification(c, nm)
-            if (mayOpenDialog && OverlayPanel.canDraw(c) && OverlayPanel.running()) {
+            // Never while the Quick panel is on the screen: the dialog would come up over it and close it (the panel then vanishes).
+            if (mayOpenDialog && !OverlayPanel.panelShowing && OverlayPanel.canDraw(c) && OverlayPanel.running()) {
                 // "Draw over other apps" lets an app start a screen from the background; not more often than every 20 minutes
                 val now = System.currentTimeMillis()
                 if (now - prefs(c).getLong(PREF_LAST_AUTO, 0L) >= AUTO_GAP_MS) {
