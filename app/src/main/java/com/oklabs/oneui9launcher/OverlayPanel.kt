@@ -75,7 +75,8 @@ object OverlayPanel {
 
     /** Makes the service match the switch and the permission (safe to call as often as you like). */
     fun sync(context: Context) {
-        val want = wanted(context) && canDraw(context)
+        // Step 85: the service also runs for the floating button alone, so the button can switch the panel back on
+        val want = (wanted(context) || FloatButton.wanted(context)) && canDraw(context)
         val intent = Intent(context, PanelOverlayService::class.java)
         try {
             if (want) {
@@ -367,6 +368,7 @@ class PanelOverlayService : Service() {
 
     fun showPanel(startOnNotifs: Boolean = false) {
         if (frame != null) return
+        if (!OverlayPanel.wanted(this)) return // Step 85: the Quick panel over other apps is switched off
         if (!OverlayPanel.canDraw(this)) return
         val built = buildHost() ?: return
         try {
@@ -552,10 +554,12 @@ class PanelOverlayService : Service() {
             val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val view = button ?: FloatingButtonView(
                 ServiceUiContext(this), true,
-                { android.os.Handler(android.os.Looper.getMainLooper()).post { showPanel(false) } },
+                { android.os.Handler(android.os.Looper.getMainLooper()).post { floatTap() } },
                 { x, y -> moveButton(x, y) },
-                { x, y -> releaseButton(x, y) }
+                { x, y -> releaseButton(x, y) },
+                { android.os.Handler(android.os.Looper.getMainLooper()).post { floatSwitch() } }
             ).also { button = it }
+            view.on = OverlayPanel.wanted(this)
             view.buzz = FloatButton.haptic(this)
             view.alpha = FloatButton.alphaPct(this) / 100f
             val size = dp(FloatButton.sizeDp(this))
@@ -584,6 +588,20 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             button = null // a window that could not be added is made again next time
             buttonParams = null
+        }
+    }
+
+    /** Step 85: a tap on the floating button opens the Quick panel while it is on; while it is off, a tap switches it on. */
+    private fun floatTap() {
+        if (OverlayPanel.wanted(this)) showPanel(false) else floatSwitch()
+    }
+
+    /** Step 85: the switch: the Quick panel over other apps on / off. Turning it on also makes this launcher the Home app in the same tap. */
+    private fun floatSwitch() {
+        PanelHomeSwitch.tap(ServiceUiContext(this))
+        button?.let {
+            it.on = OverlayPanel.wanted(this)
+            it.invalidate()
         }
     }
 

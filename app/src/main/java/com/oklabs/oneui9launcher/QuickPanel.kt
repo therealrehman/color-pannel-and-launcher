@@ -944,18 +944,6 @@ class QuickPanel(
         texts.addView(date, dateLp)
         row.addView(texts, LinearLayout.LayoutParams(0, WRAP, 1f))
 
-        // Step 84: the Quick panel + Home app switch. One tap turns the panel on (and asks for the Home app in the same tap) or off.
-        val homeSwitch = QuickGlyph(c, QuickGlyph.HOME_SWITCH)
-        val switchOn = PanelHomeSwitch.isOn(c)
-        homeSwitch.tint = if (switchOn) PanelLook.text else PanelLook.textA(120)
-        homeSwitch.contentDescription = if (switchOn) "Quick panel is on. Tap to turn it off" else "Quick panel is off. Tap to turn it on and make this the Home app"
-        homeSwitch.isClickable = true
-        homeSwitch.setOnClickListener {
-            PanelHomeSwitch.tap(c)
-            handler.postDelayed({ refresh() }, 300)
-        }
-        row.addView(homeSwitch, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
-
         // Step 37: the round colour button: it shows the colour the panel has now; a tap opens / closes the row of colours right here
         val palette = colourDot(PanelTheme.saved(c), false)
         palette.contentDescription = "Panel colour"

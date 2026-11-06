@@ -25,7 +25,8 @@ object FloatButton {
 
     private fun prefs(c: Context) = c.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 
-    fun wanted(c: Context): Boolean = prefs(c).getBoolean(PREF_ON, false)
+    /** Step 87: the floating quick button was removed from the app: it is never shown. */
+    fun wanted(c: Context): Boolean = false
     fun sizeDp(c: Context): Int = clampSize(prefs(c).getInt(PREF_SIZE, 44))
     fun alphaPct(c: Context): Int = clampAlpha(prefs(c).getInt(PREF_ALPHA, 70))
     fun snap(c: Context): Boolean = prefs(c).getBoolean(PREF_SNAP, true)
@@ -60,8 +61,21 @@ class FloatingButtonView(
     var buzz: Boolean,
     private val onTap: () -> Unit,
     private val onMove: (Int, Int) -> Unit,
-    private val onRelease: (Int, Int) -> Unit
+    private val onRelease: (Int, Int) -> Unit,
+    private val onLong: () -> Unit = {} // Step 85: a long press (switches the Quick panel on / off)
 ) : View(context) {
+
+    /** Step 85: the switch state shown on the button: white tiles = the Quick panel is on, dimmed = off. */
+    var on: Boolean = true
+
+    private var longFired = false
+    private val longPress = Runnable {
+        if (!dragging) {
+            longFired = true
+            if (buzz) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            onLong()
+        }
+    }
     private val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
@@ -86,7 +100,7 @@ class FloatingButtonView(
         canvas.drawCircle(width / 2f, height / 2f, r - paint.strokeWidth / 2f, paint)
         // four small rounded tiles (the panel's symbol)
         paint.style = Paint.Style.FILL
-        paint.color = Color.WHITE
+        paint.color = if (on) Color.WHITE else Color.argb(110, 255, 255, 255)
         val tile = r * 0.46f
         val gap = r * 0.12f
         val cx = width / 2f
@@ -108,6 +122,9 @@ class FloatingButtonView(
                 startX = winX
                 startY = winY
                 dragging = false
+                longFired = false
+                removeCallbacks(longPress)
+                postDelayed(longPress, 450L)
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -115,20 +132,23 @@ class FloatingButtonView(
                 val dy = ev.rawY - downRawY
                 if (!dragging && FloatButton.isDrag(dx, dy, slop)) {
                     dragging = true
+                    removeCallbacks(longPress)
                     if (buzz) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 }
                 if (dragging) onMove(startX + dx.toInt(), startY + dy.toInt())
             }
             MotionEvent.ACTION_UP -> {
+                removeCallbacks(longPress)
                 if (dragging) {
                     onRelease(winX, winY)
-                } else {
+                } else if (!longFired) {
                     if (buzz) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     onTap()
                 }
                 dragging = false
             }
             MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(longPress)
                 if (dragging) onRelease(winX, winY)
                 dragging = false
             }

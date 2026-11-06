@@ -934,30 +934,6 @@ class HomeSettingsActivity : Activity() {
         )
         kit.note(box, "The handle gestures need the Top handle switched on. Double-tap and long-press are off by default. Shake uses the phone's motion sensor only while the screen is on, so it uses very little battery, but it can open the panel by mistake when you walk fast or ride a bike: use \"Firm\" then, or leave it off. Everything here still needs \"Quick panel over other apps\" and \"Draw over other apps\".")
 
-        kit.label(box, "Floating button")
-        kit.card(
-            box,
-            kit.toggle(-1, 0, "Floating button", "A small round button over every app: tap it to open the Quick panel, drag it where you like", FloatButton.wanted(this)) { on ->
-                prefs().edit().putBoolean(FloatButton.PREF_ON, on).apply()
-            },
-            kit.slider("Size", 44, FloatButton.sizeDp(this) - 28, { (it + 28).toString() + " dp" }) { v ->
-                prefs().edit().putInt(FloatButton.PREF_SIZE, FloatButton.clampSize(v + 28)).apply()
-            },
-            kit.slider("Opacity", 80, FloatButton.alphaPct(this) - 20, { (it + 20).toString() + "%" }) { v ->
-                prefs().edit().putInt(FloatButton.PREF_ALPHA, FloatButton.clampAlpha(v + 20)).apply()
-            },
-            kit.toggle(-1, 0, "Stick to the edge", "After a drag the button glides to the nearest side edge", FloatButton.snap(this)) { on ->
-                prefs().edit().putBoolean(FloatButton.PREF_SNAP, on).apply()
-            },
-            kit.toggle(-1, 0, "Vibrate", null, FloatButton.haptic(this)) { on ->
-                prefs().edit().putBoolean(FloatButton.PREF_HAPTIC, on).apply()
-            },
-            kit.row(-1, 0, "Reset position", "Back to the right edge, upper part of the screen") {
-                FloatButton.resetPosition(this)
-            }
-        )
-        kit.note(box, "The button is part of \"Quick panel over other apps\" (it needs that switch and \"Draw over other apps\"). It is hidden while the panel is open. It sits over the app, so it takes the touches on its own spot: drag it away from buttons you need. The phone may hide it over full-screen videos / games; the smart rules below hide it on purpose.")
-
         kit.label(box, "Phone buttons (no Accessibility)")
         val phoneCount = QuickTiles.phoneEntries(this).size
         kit.card(

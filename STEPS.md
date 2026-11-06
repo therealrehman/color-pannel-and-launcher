@@ -1098,3 +1098,28 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Version 1.1.4 (code 204). Changed/new: `QuickPanel.kt`, `QuickGlyph.kt`, `HomeSettingsActivity.kt`, `ThemeUnlock.kt`, `PanelHomeSwitch.kt` (new),
   `UnlockCard.kt` (new), `AndroidManifest.xml` (CardActivity), `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.
 - Step 84 also removed the unused Unity LevelPlay dependency (`com.unity3d.ads-mediation:mediation-sdk`): no source file used it, and it was the source of the earlier CI "Unresolved reference" failures. The ads are Huawei Ads Kit only.
+
+## Step 85 - the floating overlay button is the quick switch
+- **Floating button (the round button over every app):** tap opens the Quick panel while the panel over other apps is on; while it is off, a tap switches it on.
+  **Long-press** switches the Quick panel over other apps on or off; turning it on also makes this launcher the Home app in the same tap (`PanelHomeSwitch`, Android's own dialog).
+  The button shows its state: white tiles when the panel is on, dimmed when off. A short haptic tap confirms; the long-press buzzes.
+- The service keeps running while the floating button is on, even with the panel switched off, so the button can always switch it back on (before, switching the panel off removed the button too).
+- While the panel is switched off: the panel itself does not open from the notification or the button (`showPanel` checks the switch); the floating button stays for switching it back on.
+  The header switch button in the Quick panel (Step 84) is unchanged.
+- Changed: `FloatingButton.kt` (long-press, state look), `OverlayPanel.kt` (service kept for the button, tap / switch functions), `HomeSettingsActivity.kt` (description). Version 1.1.5 (code 205). Not built or run on a phone.
+
+## Step 86 - Huawei ads: test slots in debug, real slots in release, and the reason when no ad shows
+- Why the card said "No ad is available": the app always asked for the real ad slot, and the toast hid the reason. Huawei's docs say test with the test slots
+  first (`testx9dtjwj8hp` rewarded, `testw6vs28auh3` banner); a real slot only fills when it is approved in Petal Ads / AppGallery Connect for this app, and when the
+  phone has HMS Core (Huawei phones). A phone without HMS Core (Vivo, Samsung...) can never show Huawei ads.
+- **Debug build** (the GitHub debug APK, debuggable) uses the test slots automatically; **release build** (AppGallery) uses the real slots.
+- The unlock card's message now says why no ad showed (for example "Huawei sent no ad, error N", "no ad was ready in 10 seconds", "Huawei Ads could not start").
+- Checked: INTERNET permission is in the manifest; `agconnect-services.json` is in `app/` with package `com.oklabs.oneui9launcher`; the Huawei repo and AGC plugin are in the build files.
+- Changed: `HuaweiAds.kt` (test/real slot choice, `lastError`), `UnlockCard.kt` (message), `build.gradle.kts` (version 1.1.6, code 206). Not run on a phone.
+
+## Step 87 - floating quick button and the Quick panel Home button removed
+- The round floating button over every app is gone: `FloatButton.wanted()` is always false, so it is never drawn, and its section in Settings
+  (Floating button: size, opacity, edge, vibrate, reset position) is removed.
+- The house button in the Quick panel header (Step 84, the panel + Home app switch) is removed.
+- Kept: the "Quick panel over other apps" switch, the Draw over other apps permission, the unlock card and the test / real ad slots (Step 86).
+- Version 1.1.7 (code 207). Changed: `QuickPanel.kt`, `HomeSettingsActivity.kt`, `FloatingButton.kt`, `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.

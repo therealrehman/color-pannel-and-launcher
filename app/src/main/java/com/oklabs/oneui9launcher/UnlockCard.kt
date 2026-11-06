@@ -100,7 +100,8 @@ object UnlockCard {
                 },
                 onUnavailable = {
                     ThemeUnlock.grant(c)
-                    Toast.makeText(c, "No ad is available right now. Gradients are unlocked.", Toast.LENGTH_LONG).show()
+                    val why = if (HuaweiAds.lastError.isEmpty()) "" else " (" + HuaweiAds.lastError + ")"
+                    Toast.makeText(c, "No ad is available right now" + why + ". Gradients are unlocked.", Toast.LENGTH_LONG).show()
                     dialog.dismiss()
                     then()
                 }
