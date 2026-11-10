@@ -420,8 +420,7 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
         }
     }
 
-    private fun canSecure(): Boolean =
-        app.checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    private fun canSecure(): Boolean = false // no force access (WRITE_SECURE_SETTINGS) in this app
 
     /**
      * Step 28b: with the one-time adb grant (WRITE_SECURE_SETTINGS) these are switched by writing the phone's own setting, with no help of the

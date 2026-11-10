@@ -22,8 +22,6 @@
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
-    <!-- Step 28b: optional. Only when the person grants it once with adb (pm grant), Location, Dark mode and Battery saver are switched directly. -->
-    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <!-- Step 26: shows whether NFC is on (the button itself is switched by the Quick panel service). -->
     <uses-permission android:name="android.permission.NFC" />
 

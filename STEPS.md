@@ -1132,3 +1132,9 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Store notes: `docs/APPGALLERY.md` section 4 (store text), 6 (privacy answers: Collect personal data = YES, with the ad data row), and 8 (reviewer note).
 - Note: this build is the Step 87 code (Huawei ads only). Google AdMob (Step 88) is not in this zip.
 - Version 1.1.8 (code 208). Changed: `LegalText.kt`, `docs/privacy-policy.html`, `docs/APPGALLERY.md`, `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.
+
+## Step 86 - Huawei review fix: no more "repel launcher"; no force access in the store app
+- Review (rule 3.5, fake or misleading function): the app asked again and again to be the Home app, but the phone never lets an app keep that place.
+- Removed: the 8-second Home watch (`OverlayPanel`), the automatic Home notification and dialog (`HomeKeeper.check` now only clears the notification), the "Keep as my Home app" switch (Settings), and the Home-role and set-home-activity adb lines (`KeepAlive`).
+- Removed force access: `ServiceKeeper` no longer rewrites the Accessibility list; `QuickSystem` never uses WRITE_SECURE_SETTINGS; the permission is gone from the main manifest.
+- Version 1.1.9 (code 209). Not compiled here (Maven blocked in this sandbox).

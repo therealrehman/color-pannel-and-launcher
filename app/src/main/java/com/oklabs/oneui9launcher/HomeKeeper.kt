@@ -14,10 +14,9 @@ import android.os.Bundle
 import android.provider.Settings
 
 /**
- * Keeps the launcher as the phone's Home app. Android (and some makers' systems, after a restart) can put the phone's own launcher back,
- * and NO app may switch the default Home app silently: only the person can say yes, in Android's own dialog. So when the launcher notices it is
- * not the Home app any more (after a restart, an update, the 15-minute check, or when it is opened) it makes that one tap as easy as possible:
- * a notification "Tap to make Glassy launcher your Home app" and, when "Draw over other apps" is allowed, it opens Android's dialog by itself.
+ * Reads whether this launcher is the phone's Home app and keeps a short log of changes (Settings > Home app log).
+ * It never asks again by itself: Android allows changing the Home app only by the person, in its own dialog, so the launcher asks only when
+ * the person taps "Set as default" or switches on the Quick panel.
  */
 object HomeKeeper {
     const val PREF_ON = "hk_on"
@@ -78,54 +77,21 @@ object HomeKeeper {
                 if (now) addLog(c, "this launcher is the Home app again")
                 else addLog(c, "LOST the Home role to " + holder(c) + (if (CrashLog.read(c) != null) " (a crash note exists: see Settings)" else ""))
             }
-            if (!now) check(c, true)
         } catch (e: Exception) {
             // never let a check end the service
         }
     }
 
-    /** Decides what to do: nothing when it is the Home app (the notification goes away), otherwise the notification and maybe the dialog. */
+    /**
+     * No longer asks again by itself (no notification, no Android dialog on its own). The Home app changes only when the person taps
+     * "Set as default" or the Quick panel switch. Kept as one call so the other places that call it still work.
+     */
     fun check(c: Context, mayOpenDialog: Boolean) {
         try {
-            val nm = c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (!wanted(c) || isDefault(c)) {
-                nm.cancel(NOTE_ID)
-                return
-            }
-            showNotification(c, nm)
-            // Never while the Quick panel is on the screen: the dialog would come up over it and close it (the panel then vanishes).
-            if (mayOpenDialog && !OverlayPanel.panelShowing && OverlayPanel.canDraw(c) && OverlayPanel.running()) {
-                // "Draw over other apps" lets an app start a screen from the background; not more often than every 20 minutes
-                val now = System.currentTimeMillis()
-                if (now - prefs(c).getLong(PREF_LAST_AUTO, 0L) >= AUTO_GAP_MS) {
-                    prefs(c).edit().putLong(PREF_LAST_AUTO, now).apply()
-                    c.startActivity(Intent(c, HomeRoleActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                }
-            }
+            (c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(NOTE_ID)
         } catch (e: Exception) {
-            // the phone refused: the notification (if it was shown) is still there
+            // nothing to cancel
         }
-    }
-
-    private fun showNotification(c: Context, nm: NotificationManager) {
-        if (Build.VERSION.SDK_INT >= 26) {
-            val ch = NotificationChannel(CHANNEL, "Home app", NotificationManager.IMPORTANCE_HIGH)
-            ch.setShowBadge(false)
-            nm.createNotificationChannel(ch)
-        }
-        val open = PendingIntent.getActivity(
-            c, 3, Intent(c, HomeRoleActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(c, CHANNEL) else Notification.Builder(c)
-        nm.notify(
-            NOTE_ID,
-            builder.setSmallIcon(R.drawable.ic_stat_panel)
-                .setContentTitle(c.getString(R.string.app_name) + " is not your Home app")
-                .setContentText("Tap to make it your Home app again")
-                .setAutoCancel(true)
-                .setContentIntent(open)
-                .build()
-        )
     }
 }
 

@@ -31,8 +31,8 @@ android {
         applicationId = "com.oklabs.oneui9launcher"
         minSdk = 26                       // Android 8.0 and newer
         targetSdk = minOf(sdkApi, 36)   // Google Play: new apps and updates must target API 36
-        versionCode = 208
-        versionName = "1.1.8"
+        versionCode = 209
+        versionName = "1.1.9"
     }
 
     signingConfigs {
@@ -82,10 +82,6 @@ android {
 // everything else in the app still has no third-party library.
 dependencies {
     // Step 84: the Unity LevelPlay SDK was removed: nothing in this app uses it any more (ads are Huawei Ads Kit only).
-    // Lets the SDK read the Google advertising / app-set ID (used for ad targeting and fraud checks only).
-    implementation("com.google.android.gms:play-services-appset:16.0.0")
-    implementation("com.google.android.gms:play-services-ads-identifier:18.1.0")
-    implementation("com.google.android.gms:play-services-basement:18.1.0")
 
     // Huawei Ads Kit (AppGallery build). Ads only load when HMS Core is on the phone; otherwise the app unlocks the gradients anyway.
     implementation("com.huawei.hms:ads-lite:13.4.54.302")
