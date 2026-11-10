@@ -1138,3 +1138,9 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Removed: the 8-second Home watch (`OverlayPanel`), the automatic Home notification and dialog (`HomeKeeper.check` now only clears the notification), the "Keep as my Home app" switch (Settings), and the Home-role and set-home-activity adb lines (`KeepAlive`).
 - Removed force access: `ServiceKeeper` no longer rewrites the Accessibility list; `QuickSystem` never uses WRITE_SECURE_SETTINGS; the permission is gone from the main manifest.
 - Version 1.1.9 (code 209). Not compiled here (Maven blocked in this sandbox).
+
+## Step 87 - the panel no longer closes by itself
+- `SystemPanel.onInterrupt` no longer closes the panel (a paused feedback is not a user action).
+- The panel closes on another app's window only when a real app screen (an Activity) comes to the front. Dialogs, toasts and permission prompts do not close it.
+- Version 1.1.10 (code 210).
+- Accessibility keep-alive: `AccessKeepService` (foreground, lowest importance) runs only while the Accessibility service is connected, so the phone's cleaner is less likely to stop it. The app itself never switches Accessibility off (no disableSelf, no writes to the Accessibility list).

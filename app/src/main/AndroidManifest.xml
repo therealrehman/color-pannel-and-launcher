@@ -268,6 +268,16 @@
                 android:value="Keeps the Quick panel window ready to open over other apps" />
         </service>
 
+        <!-- Keeps the Accessibility service's process in the foreground while it is on (started and stopped by the service itself). -->
+        <service
+            android:name=".AccessKeepService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the Accessibility service running for the Quick panel pull-down" />
+        </service>
+
         <!-- Step 7: starts the Quick panel service again after a restart / an update / a keep-alive alarm. It only calls OverlayPanel.sync(). -->
         <receiver
             android:name=".KeepAliveReceiver"

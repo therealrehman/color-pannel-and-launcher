@@ -224,6 +224,7 @@ class PanelAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        AccessKeepService.start(this) // keeps this process in the foreground while the service is on
         Look.load(this)
         val filter = IntentFilter()
         filter.addAction(Intent.ACTION_SCREEN_ON)
@@ -239,11 +240,12 @@ class PanelAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
-        hidePanel()
+        // Not a user action (the phone or another service pauses the feedback): the panel stays open.
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
         coverOff()
+        AccessKeepService.stop(this)
         forcing = false
         hidePanel()
         removeStrip()
@@ -276,6 +278,16 @@ class PanelAccessibilityService : AccessibilityService() {
         false
     }
 
+    /**
+     * Only a real app screen (an Activity) coming to the front closes the panel. Dialogs, toasts, permission prompts and other
+     * system windows do not: they used to close it by themselves.
+     */
+    private fun isRealAppOpening(pkg: String, cls: CharSequence?): Boolean {
+        if (pkg == "android" || pkg.startsWith("com.android.permissioncontroller") ||
+            pkg.startsWith("com.google.android.permissioncontroller") || pkg.startsWith("com.android.packageinstaller")) return false
+        return cls?.toString()?.contains("Activity") == true
+    }
+
     private fun handleEvent(event: AccessibilityEvent?) {
         val e = event ?: return
         if (forcing) return // Step 26: the phone's Quick settings is open on purpose, do not swap it for our panel
@@ -288,7 +300,7 @@ class PanelAccessibilityService : AccessibilityService() {
         if (frame != null) {
             // another app came to the front (a button of the panel opened Settings, say): the panel goes
             // Step 40b: the keyboard coming up (any keyboard app) is not "another app": the panel stays
-            if (pkg != packageName && !SystemPanelLogic.isSystemUi(pkg) && !isKeyboardPackage(pkg)) hidePanel()
+            if (pkg != packageName && !SystemPanelLogic.isSystemUi(pkg) && !isKeyboardPackage(pkg) && isRealAppOpening(pkg, e.className)) hidePanel()
             return
         }
         if (SystemPanel.strip(this)) {
