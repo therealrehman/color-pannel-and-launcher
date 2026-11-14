@@ -856,15 +856,23 @@ class HomeSettingsActivity : Activity() {
                 prefs().edit().putInt(TopHandle.PREF_THICK, TopHandle.clampThick(v + 2)).apply()
             },
             kit.chips("Colour", listOf("Quick panel colour", "White", "Gradient"), TopHandle.colorMode(this)) { i ->
-                prefs().edit().putInt(TopHandle.PREF_COLOR, i).apply()
+                if (i == 2 && !ThemeUnlock.isOpen(this)) {
+                    UnlockCard.show(this, PanelTheme.saved(this), then = { prefs().edit().putInt(TopHandle.PREF_COLOR, 2).apply(); show() }, onClosed = { if (!ThemeUnlock.isOpen(this)) show() })
+                } else {
+                    prefs().edit().putInt(TopHandle.PREF_COLOR, i).apply()
+                }
             },
             kit.value("Gradient", Gradients.all[TopHandle.gradIndex(this)].name) {
                 val names = Gradients.all.map { it.name }.toTypedArray()
                 android.app.AlertDialog.Builder(this)
                     .setTitle("Strip gradient")
                     .setItems(names) { _, which ->
-                        prefs().edit().putInt(TopHandle.PREF_GRAD, which).putInt(TopHandle.PREF_COLOR, 2).apply()
-                        show()
+                        val pick: () -> Unit = {
+                            prefs().edit().putInt(TopHandle.PREF_GRAD, which).putInt(TopHandle.PREF_COLOR, 2).apply()
+                            show()
+                        }
+                        if (ThemeUnlock.isOpen(this)) pick()
+                        else UnlockCard.show(this, PanelTheme.saved(this), then = pick, onClosed = { if (!ThemeUnlock.isOpen(this)) show() })
                     }
                     .setNegativeButton("Cancel", null)
                     .show()

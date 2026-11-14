@@ -25,7 +25,7 @@ import android.widget.Toast
 object UnlockCard {
 
     /** Shows the card for panel colour number [index]. [then] runs after the gradients are unlocked; [onClosed] when the card goes away. */
-    fun show(activity: Activity, index: Int, then: () -> Unit, onClosed: () -> Unit = {}) {
+    fun show(activity: Activity, index: Int, then: () -> Unit, onClosed: () -> Unit = {}, forPanel: Boolean = false) {
         if (activity.isFinishing) return
         val c = activity
         val dialog = Dialog(c, android.R.style.Theme_Translucent_NoTitleBar)
@@ -64,11 +64,11 @@ object UnlockCard {
         top.addView(sparkle, FrameLayout.LayoutParams(c.dp(72), c.dp(72), Gravity.CENTER))
         card.addView(top, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, c.dp(124)))
 
-        val title = label(c, "Unlock gradient colours", 20f, Color.WHITE, bold = true)
+        val title = label(c, if (forPanel) "Unlock the Quick panel" else "Unlock gradient colours", 20f, Color.WHITE, bold = true)
         title.gravity = Gravity.CENTER
         card.addView(title, margins(c, top = 22, side = 22))
 
-        val body = label(c, "Watch one short ad and every gradient colour of the Quick panel stays open for 12 hours. Solid colours are always free.", 15f, Color.argb(205, 255, 255, 255))
+        val body = label(c, if (forPanel) "Watch one short ad and the Quick panel stays open for 12 hours, gradient colours included." else "Watch one short ad and every gradient colour of the Quick panel stays open for 12 hours. Solid colours are always free.", 15f, Color.argb(205, 255, 255, 255))
         body.gravity = Gravity.CENTER
         body.setLineSpacing(c.dpf(3f), 1f)
         card.addView(body, margins(c, top = 10, side = 26))
@@ -165,11 +165,33 @@ class CardActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val index = intent.getIntExtra(EXTRA_INDEX, 1)
-        UnlockCard.show(this, index, then = {}, onClosed = { finish() })
+        if (intent.getBooleanExtra(EXTRA_PANEL, false)) {
+            val notifs = intent.getBooleanExtra(EXTRA_NOTIFS, false)
+            UnlockCard.show(this, index, then = { PanelOverlayService.openPanel(this, notifs) }, onClosed = { finish() }, forPanel = true)
+        } else {
+            UnlockCard.show(this, index, then = {}, onClosed = { finish() })
+        }
     }
 
     companion object {
         const val EXTRA_INDEX = "card_index"
+        const val EXTRA_PANEL = "card_panel"
+        const val EXTRA_NOTIFS = "card_notifs"
+
+        /** The unlock card for the Quick panel. After the reward the panel opens by itself ([notifs] = the notifications page). */
+        fun launchPanel(c: Context, index: Int, notifs: Boolean) {
+            try {
+                c.startActivity(
+                    Intent(c, CardActivity::class.java)
+                        .putExtra(EXTRA_INDEX, index)
+                        .putExtra(EXTRA_PANEL, true)
+                        .putExtra(EXTRA_NOTIFS, notifs)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
+                )
+            } catch (e: Exception) {
+                // no screen to show it on
+            }
+        }
 
         fun launch(c: Context, index: Int) {
             try {

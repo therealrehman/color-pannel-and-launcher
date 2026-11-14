@@ -357,6 +357,15 @@ class PanelOverlayService : Service() {
         }
     }
 
+    /** The strip opens the Quick panel only while the 12-hour rewarded unlock runs. Otherwise the unlock card comes first, and the panel opens after the reward. */
+    private fun openFromStrip(startOnNotifs: Boolean) {
+        if (ThemeUnlock.isOpen(this)) {
+            showPanel(startOnNotifs)
+            return
+        }
+        CardActivity.launchPanel(this, PanelTheme.saved(this), startOnNotifs)
+    }
+
     fun showPanel(startOnNotifs: Boolean = false) {
         if (frame != null) return
         if (!OverlayPanel.wanted(this)) return // Step 85: the Quick panel over other apps is switched off
@@ -413,7 +422,7 @@ class PanelOverlayService : Service() {
                 return
             }
             val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-            val view = handle ?: TopHandleView(ServiceUiContext(this), true, true) { notifs -> android.os.Handler(android.os.Looper.getMainLooper()).post { showPanel(notifs) } }.also { handle = it }
+            val view = handle ?: TopHandleView(ServiceUiContext(this), true, true) { notifs -> android.os.Handler(android.os.Looper.getMainLooper()).post { openFromStrip(notifs) } }.also { handle = it }
             view.showPill = TopHandle.visible(this)
             view.buzz = TopHandle.haptic(this)
             Look.load(this) // Step 58: light / dark of the panel for the strip colour
@@ -808,6 +817,15 @@ class PanelOverlayService : Service() {
         const val ACTION_SHOW = "com.oklabs.oneui9launcher.PANEL_SHOW"
         const val ACTION_SHOW_NOTIFS = "com.oklabs.oneui9launcher.PANEL_SHOW_NOTIFS"
         const val ACTION_HIDE = "com.oklabs.oneui9launcher.PANEL_HIDE"
+
+        /** Asks the strip service to show the Quick panel (used after the panel's rewarded unlock). */
+        fun openPanel(c: Context, notifs: Boolean) {
+            try {
+                c.startService(Intent(c, PanelOverlayService::class.java).setAction(if (notifs) ACTION_SHOW_NOTIFS else ACTION_SHOW))
+            } catch (e: Exception) {
+                // the strip service is not running
+            }
+        }
         private const val CHANNEL = "quick_panel_overlay"
         private const val NOTE_ID = 4711
 

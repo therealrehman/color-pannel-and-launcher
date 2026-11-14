@@ -47,7 +47,7 @@ object TopHandle {
     /** The colours the strip is drawn with: the Quick panel's own colour, white, or the chosen gradient (one colour = plain). */
     fun colors(c: Context): IntArray = when (colorMode(c)) {
         1 -> intArrayOf(Color.WHITE)
-        2 -> Gradients.all[gradIndex(c)].colors.copyOf()
+        2 -> if (ThemeUnlock.isOpen(c)) Gradients.all[gradIndex(c)].colors.copyOf() else PanelTheme.stripColors(c, PanelLook.dark)
         else -> PanelTheme.stripColors(c, PanelLook.dark)
     }
 
