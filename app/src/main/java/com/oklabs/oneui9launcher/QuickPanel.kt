@@ -1121,7 +1121,7 @@ class QuickPanel(
             CardActivity.launch(context, i) // Step 84: the unlock card with the Watch-ad button (a service cannot show a dialog itself)
             return
         }
-        context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.KEY, i).apply()
+        context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.keyFor(PanelTheme.surface), i).apply()
         PanelTheme.load(context)
         PanelTheme.syncWallpaper(context, i) // Step 62b
         scrim.background = PanelTheme.scrim(scrimA(205), PanelLook.dark)

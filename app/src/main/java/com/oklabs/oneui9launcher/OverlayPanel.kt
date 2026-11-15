@@ -157,7 +157,7 @@ class PanelOverlayService : Service() {
     private val handleKeys = setOf(
         TopHandle.PREF_ON, TopHandle.PREF_WIDTH, TopHandle.PREF_HEIGHT, TopHandle.PREF_OFFSET,
         TopHandle.PREF_SIDE, TopHandle.PREF_EDGE, TopHandle.PREF_VISIBLE, TopHandle.PREF_HAPTIC,
-        TopHandle.PREF_SHAPE, TopHandle.PREF_THICK, TopHandle.PREF_COLOR, TopHandle.PREF_GRAD, PanelTheme.KEY // Step 58: the strip follows the panel colour too
+        TopHandle.PREF_SHAPE, TopHandle.PREF_THICK, TopHandle.PREF_COLOR, TopHandle.PREF_GRAD, PanelTheme.KEY, PanelTheme.KEY_STRIP, PanelTheme.KEY_EDGE // Step 58: the strip follows the panel colour too
     )
     private val buttonKeys = setOf(FloatButton.PREF_ON, FloatButton.PREF_SIZE, FloatButton.PREF_ALPHA, FloatButton.PREF_SNAP, FloatButton.PREF_FX, FloatButton.PREF_FY, FloatButton.PREF_HAPTIC)
     private val triggerKeys = setOf(MoreTriggers.PREF_DOUBLE, MoreTriggers.PREF_LONG, MoreTriggers.PREF_SPLIT)
@@ -231,15 +231,17 @@ class PanelOverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val surface = intent?.getIntExtra(EXTRA_SURFACE, PanelTheme.SURFACE_QUICK) ?: PanelTheme.SURFACE_QUICK
         when (intent?.action) {
-            ACTION_SHOW -> showPanel(false)
-            ACTION_SHOW_NOTIFS -> showPanel(true)
+            ACTION_SHOW -> showPanel(false, surface)
+            ACTION_SHOW_NOTIFS -> showPanel(true, surface)
             ACTION_HIDE -> hidePanel()
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
+        PanelTheme.useSurface(this, PanelTheme.SURFACE_QUICK) // the strip panel's colour must not stay in use once the service stops
         try {
             getSharedPreferences("launcher", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(prefListener)
         } catch (e: Exception) {
@@ -360,17 +362,21 @@ class PanelOverlayService : Service() {
     /** The strip opens the Quick panel only while the 12-hour rewarded unlock runs. Otherwise the unlock card comes first, and the panel opens after the reward. */
     private fun openFromStrip(startOnNotifs: Boolean) {
         if (ThemeUnlock.isOpen(this)) {
-            showPanel(startOnNotifs)
+            showPanel(startOnNotifs, PanelTheme.SURFACE_STRIP)
             return
         }
-        CardActivity.launchPanel(this, PanelTheme.saved(this), startOnNotifs)
+        CardActivity.launchPanel(this, PanelTheme.savedFor(this, PanelTheme.SURFACE_STRIP), startOnNotifs, PanelTheme.SURFACE_STRIP)
     }
 
-    fun showPanel(startOnNotifs: Boolean = false) {
+    fun showPanel(startOnNotifs: Boolean = false, surface: Int = PanelTheme.SURFACE_QUICK) {
         if (frame != null) return
         if (!OverlayPanel.wanted(this)) return // Step 85: the Quick panel over other apps is switched off
         if (!OverlayPanel.canDraw(this)) return
-        val built = buildHost() ?: return
+        PanelTheme.useSurface(this, surface)
+        val built = buildHost() ?: run {
+            PanelTheme.useSurface(this, PanelTheme.SURFACE_QUICK)
+            return
+        }
         try {
             val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val params = WindowManager.LayoutParams(
@@ -394,6 +400,7 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             frame = null
             OverlayPanel.panelShowing = false
+            PanelTheme.useSurface(this, PanelTheme.SURFACE_QUICK)
         }
     }
 
@@ -401,6 +408,7 @@ class PanelOverlayService : Service() {
         val host = frame ?: return
         frame = null
         OverlayPanel.panelShowing = false
+        PanelTheme.useSurface(this, PanelTheme.SURFACE_QUICK)
         try {
             (getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeViewImmediate(host)
         } catch (e: Exception) {
@@ -817,11 +825,12 @@ class PanelOverlayService : Service() {
         const val ACTION_SHOW = "com.oklabs.oneui9launcher.PANEL_SHOW"
         const val ACTION_SHOW_NOTIFS = "com.oklabs.oneui9launcher.PANEL_SHOW_NOTIFS"
         const val ACTION_HIDE = "com.oklabs.oneui9launcher.PANEL_HIDE"
+        const val EXTRA_SURFACE = "com.oklabs.oneui9launcher.PANEL_SURFACE"
 
         /** Asks the strip service to show the Quick panel (used after the panel's rewarded unlock). */
-        fun openPanel(c: Context, notifs: Boolean) {
+        fun openPanel(c: Context, notifs: Boolean, surface: Int = PanelTheme.SURFACE_QUICK) {
             try {
-                c.startService(Intent(c, PanelOverlayService::class.java).setAction(if (notifs) ACTION_SHOW_NOTIFS else ACTION_SHOW))
+                c.startService(Intent(c, PanelOverlayService::class.java).setAction(if (notifs) ACTION_SHOW_NOTIFS else ACTION_SHOW).putExtra(EXTRA_SURFACE, surface))
             } catch (e: Exception) {
                 // the strip service is not running
             }

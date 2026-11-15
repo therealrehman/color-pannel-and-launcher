@@ -3,13 +3,13 @@ package com.oklabs.oneui9launcher
 import android.content.Context
 
 /**
- * Step 13: the policies as text inside the app, so they can be read without internet (the app uses the internet only for rewarded ads: see section 2).
+ * Step 13: the policies as text inside the app, so they can be read without internet (the app uses the internet only for ads: see section 2).
  * They say the same as the pages in docs/ (privacy-policy.html, terms.html). When you change one, change the other.
  * {app}, {company} and {email} are replaced with the app name, the developer name and the contact address from strings.xml.
  */
 object LegalText {
 
-    const val EFFECTIVE = "November 7, 2026"
+    const val EFFECTIVE = "November 15, 2026"
 
     class Section(val heading: String, val paragraphs: List<String>)
 
@@ -22,8 +22,8 @@ object LegalText {
         Section(
             "In short",
             listOf(
-                "{app} does not collect, store on any server, share or sell your personal data. Its rewarded ads come from Huawei Ads Kit, which can collect some device data (see section 2).",
-                "The app has no account and no analytics. It uses the internet only to load a rewarded ad when you tap “Watch ad” to unlock gradient colours. Everything the launcher knows about your layout and settings stays on your phone."
+                "{app} does not collect, store on any server, share or sell your personal data. Its ads come from Huawei Ads Kit, which can collect some device data (see section 2).",
+                "The app has no account and no analytics. It uses the internet only to load ads: a small banner in the Settings screen, a full-screen ad after every third time you change the Quick panel colour in Settings, and a rewarded ad when you tap “Watch ad” to unlock gradient colours. Everything the launcher knows about your layout and settings stays on your phone."
             )
         ),
         Section(
@@ -37,7 +37,7 @@ object LegalText {
             "2. Data we collect",
             listOf(
                 "The launcher itself collects none of: personal information, device identifiers, location, contacts, messages, photos or usage statistics.",
-                "The app requests the Android INTERNET permission only so that Huawei Ads Kit can load a rewarded ad. Huawei Ads Kit may send some device and ad data to Huawei when an ad loads, for example an advertising identifier, device model and software version, language, region and network details (see section 5). The launcher sends nothing else, and we run no servers for the app."
+                "The app requests the Android INTERNET permission only so that Huawei Ads Kit can load the Settings banner, the full-screen ad and the rewarded ad. Huawei Ads Kit may send some device and ad data to Huawei when an ad loads, for example an advertising identifier, device model and software version, language, region and network details (see section 5). The launcher sends nothing else, and we run no servers for the app."
             )
         ),
         Section(
@@ -63,7 +63,7 @@ object LegalText {
         Section(
             "5. Sharing",
             listOf(
-                "We do not share, sell or rent any data. The app has no analytics code. The rewarded ads come from Huawei Ads Kit, Huawei’s own service: Huawei handles the data it collects under its own privacy policy, available on Huawei’s website. We do not receive that data. On phones without Huawei Mobile Services the ad does not load, and the gradient colours unlock without an ad."
+                "We do not share, sell or rent any data. The app has no analytics code. The ads come from Huawei Ads Kit, Huawei’s own service: Huawei handles the data it collects under its own privacy policy, available on Huawei’s website. We do not receive that data. On phones without Huawei Mobile Services the ad does not load, and the gradient colours unlock without an ad."
             )
         ),
         Section(
@@ -83,13 +83,13 @@ object LegalText {
         Section(
             "8. Children",
             listOf(
-                "The app is a general-purpose tool and is not directed at children under 13. Ads are shown only when a person chooses to watch one. We do not knowingly collect personal data from children."
+                "The app is a general-purpose tool and is not directed at children under 13. Ads are shown in the Settings screen (a small banner) and as full-screen ads after panel colour changes in Settings. A rewarded ad is shown only when a person chooses to watch one. We do not knowingly collect personal data from children."
             )
         ),
         Section(
             "9. Security",
             listOf(
-                "Your layout and settings are kept in the app’s private storage, which other apps cannot read on an unmodified Android phone. Apart from the rewarded ad request described in section 2, nothing is transmitted by the app."
+                "Your layout and settings are kept in the app’s private storage, which other apps cannot read on an unmodified Android phone. Apart from the ad requests described in section 2, nothing is transmitted by the app."
             )
         ),
         Section(
@@ -299,7 +299,7 @@ object LegalText {
         ),
         Permission(
             "Internet",
-            "Requested only so that Huawei Ads Kit can load a rewarded ad when you tap “Watch ad”. The launcher itself sends no data.",
+            "Requested only so that Huawei Ads Kit can load the Settings banner, the full-screen ad, and the rewarded ad when you tap “Watch ad”. The launcher itself sends no data.",
             false
         )
     )
@@ -307,7 +307,7 @@ object LegalText {
     val openSource: List<Section> = listOf(
         Section(
             "Code",
-            listOf("{app} is written in Kotlin and uses the Android platform. Its only third-party library is Huawei Ads Kit, used for rewarded ads. It has no analytics.")
+            listOf("{app} is written in Kotlin and uses the Android platform. Its only third-party library is Huawei Ads Kit, used for ads (the Settings banner, full-screen ads and rewarded ads). It has no analytics.")
         ),
         Section(
             "Icons and artwork",

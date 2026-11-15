@@ -45,7 +45,7 @@ class EdgePanel(
 
         val r = context.dpf(28f)
         card.background = GradientDrawable().apply {
-            setColor(Look.panel(244))
+            setColor(PanelTheme.inSurface(context, PanelTheme.SURFACE_EDGE) { Look.panel(244) })
             cornerRadii = floatArrayOf(r, r, 0f, 0f, 0f, 0f, r, r) // round on the left side only
         }
         card.orientation = LinearLayout.VERTICAL
@@ -64,6 +64,7 @@ class EdgePanel(
         card.animate().cancel()
         scrim.animate().cancel()
         closing = false
+        (card.background as? GradientDrawable)?.setColor(PanelTheme.inSurface(context, PanelTheme.SURFACE_EDGE) { Look.panel(244) })
         column.removeAllViews()
         if (entries.isEmpty()) {
             val empty = TextView(context)

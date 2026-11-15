@@ -724,10 +724,10 @@ class HomeSettingsActivity : Activity() {
         kit.label(box, "Colour")
         kit.card(
             box,
-            kit.panelThemeDots("Panel colour", PanelTheme.saved(this)) { i ->
+            kit.panelThemeDots("Panel colour", PanelTheme.savedFor(this, PanelTheme.SURFACE_QUICK)) { i ->
                 ThemeUnlock.gate(this, i) {
                     prefs().edit().putInt(PanelTheme.KEY, i).apply()
-                    PanelTheme.load(this)
+                    PanelTheme.useSurface(this, PanelTheme.SURFACE_QUICK)
                     PanelTheme.syncWallpaper(this, i)
                     val changes = prefs().getInt("ad_colour_changes", 0) + 1
                     prefs().edit().putInt("ad_colour_changes", changes).apply()
@@ -735,8 +735,8 @@ class HomeSettingsActivity : Activity() {
                 }
             },
             kit.chips("Wallpaper set on", listOf("Home", "Lock", "Both"), prefs().getInt(PanelTheme.KEY_WP_TARGET, 2)) { wpTarget = it; prefs().edit().putInt(PanelTheme.KEY_WP_TARGET, it).apply() },
-            kit.row(-1, 0, "Wallpaper in this panel colour", "Makes a wallpaper of the same colour as the panel (" + PanelTheme.name(PanelTheme.saved(this)) + ")") {
-                PanelTheme.setWallpaper(this, PanelTheme.saved(this)) { toast(it) }
+            kit.row(-1, 0, "Wallpaper in this panel colour", "Makes a wallpaper of the same colour as the panel (" + PanelTheme.name(PanelTheme.savedFor(this, PanelTheme.SURFACE_QUICK)) + ")") {
+                PanelTheme.setWallpaper(this, PanelTheme.savedFor(this, PanelTheme.SURFACE_QUICK)) { toast(it) }
             },
             kit.toggle(-1, 0, "Wallpaper follows the panel colour", "Every time you pick a panel colour the wallpaper changes to match", prefs().getBoolean(PanelTheme.KEY_WP_FOLLOW, true)) { on ->
                 prefs().edit().putBoolean(PanelTheme.KEY_WP_FOLLOW, on).apply()
@@ -1311,6 +1311,16 @@ class HomeSettingsActivity : Activity() {
             box,
             kit.chips("Edge panel", listOf("Off", "On"), if (HomeStore.savedEdgeOn(this)) 1 else 0) { index ->
                 HomeStore.setEdgeOn(this, index == 1)
+            }
+        )
+        kit.label(box, "Colour")
+        kit.card(
+            box,
+            kit.panelThemeDots("Panel colour", PanelTheme.savedFor(this, PanelTheme.SURFACE_EDGE)) { i ->
+                ThemeUnlock.gate(this, i) {
+                    prefs().edit().putInt(PanelTheme.KEY_EDGE, i).apply()
+                    PanelTheme.syncWallpaper(this, i)
+                }
             }
         )
         kit.note(box, "A thin handle appears on the right edge of the Home screen. Tap it or drag it to the left.")

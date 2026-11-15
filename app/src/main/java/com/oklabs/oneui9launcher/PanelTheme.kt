@@ -52,6 +52,42 @@ object PanelTheme {
     }
 
     const val KEY = "qp_theme"
+
+    // ---- Each panel keeps its own colour. The Quick panel uses KEY. The panel that opens from the top strip
+    // uses KEY_STRIP and the edge panel uses KEY_EDGE. A panel that has no colour of its own follows the
+    // Quick panel, so nothing changes for anyone who has not picked one.
+    const val SURFACE_QUICK = 0
+    const val SURFACE_STRIP = 1
+    const val SURFACE_EDGE = 2
+    const val KEY_STRIP = "qp_theme_strip"
+    const val KEY_EDGE = "qp_theme_edge"
+
+    /** The panel being drawn now. Each entry point sets it before it builds its views ([useSurface] / [inSurface]). */
+    var surface: Int = SURFACE_QUICK
+        private set
+
+    fun keyFor(s: Int): String = when (s) {
+        SURFACE_STRIP -> KEY_STRIP
+        SURFACE_EDGE -> KEY_EDGE
+        else -> KEY
+    }
+
+    /** Makes panel [s] the one being drawn and loads its colour. */
+    fun useSurface(context: Context, s: Int) {
+        surface = s
+        load(context)
+    }
+
+    /** Runs [block] with panel [s] as the one being drawn, then puts the previous panel back. */
+    fun <T> inSurface(context: Context, s: Int, block: () -> T): T {
+        val previous = surface
+        useSurface(context, s)
+        try {
+            return block()
+        } finally {
+            useSurface(context, previous)
+        }
+    }
     const val COUNT = 21
 
     private class Solid(val name: String, val rgb: Int)
@@ -80,9 +116,15 @@ object PanelTheme {
         index = saved(context)
     }
 
-    /** The colour in use. A gradient falls back to white glass while its 12-hour ad unlock is not running (the saved choice is kept). */
-    fun saved(context: Context): Int {
-        val i = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY, 0).coerceIn(0, COUNT - 1)
+    /** The colour in use for the panel being drawn (see [surface]). A gradient falls back to white glass while its 12-hour ad unlock is not running (the saved choice is kept). */
+    fun saved(context: Context): Int = savedFor(context, surface)
+
+    /** The colour saved for panel [s]. A panel with no colour of its own uses the Quick panel's colour. */
+    fun savedFor(context: Context, s: Int): Int {
+        val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
+        val key = keyFor(s)
+        val raw = if (prefs.contains(key)) prefs.getInt(key, 0) else prefs.getInt(KEY, 0)
+        val i = raw.coerceIn(0, COUNT - 1)
         return if (ThemeUnlock.blocks(context, i)) 0 else i
     }
 
@@ -151,7 +193,7 @@ object PanelTheme {
      * three colours (first corner to last) for a gradient panel. Read from the saved setting, so it follows a change at once.
      */
     fun stripColors(context: Context, dark: Boolean): IntArray {
-        val i = saved(context)
+        val i = savedFor(context, SURFACE_QUICK)
         return when {
             i == 0 -> intArrayOf(if (dark) Color.rgb(236, 238, 246) else Color.rgb(60, 64, 76))
             i <= solids.size -> intArrayOf(solids[i - 1].rgb)
