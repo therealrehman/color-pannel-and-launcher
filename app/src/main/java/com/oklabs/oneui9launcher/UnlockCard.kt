@@ -20,12 +20,13 @@ import android.widget.Toast
 /**
  * Step 84: the gradient-unlock card. A real card instead of a plain dialog or a toast: the colour that was tapped runs across the top with a
  * sparkle in its middle, then the title, the reason, and two buttons. "Watch ad" shows one rewarded ad (Huawei Ads, through [HuaweiAds]);
- * when the ad is finished the gradients stay unlocked for 12 hours. When no ad can be shown (no HMS Core, no fill) they unlock anyway.
+ * when the ad is finished the gradients stay unlocked for 6 hours. When no ad can be shown (no HMS Core, no fill) they unlock anyway.
  */
 object UnlockCard {
 
     /** Shows the card for panel colour number [index]. [then] runs after the gradients are unlocked; [onClosed] when the card goes away. */
-    fun show(activity: Activity, index: Int, then: () -> Unit, onClosed: () -> Unit = {}, forPanel: Boolean = false) {
+    fun show(activity: Activity, index: Int, then: () -> Unit, onClosed: () -> Unit = {}, forPanel: Boolean = false,
+             grant: (Context) -> Unit = { ThemeUnlock.grant(it) }, forStrip: Boolean = false) {
         if (activity.isFinishing) return
         val c = activity
         val dialog = Dialog(c, android.R.style.Theme_Translucent_NoTitleBar)
@@ -64,11 +65,11 @@ object UnlockCard {
         top.addView(sparkle, FrameLayout.LayoutParams(c.dp(72), c.dp(72), Gravity.CENTER))
         card.addView(top, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, c.dp(124)))
 
-        val title = label(c, if (forPanel) "Unlock the Quick panel" else "Unlock gradient colours", 20f, Color.WHITE, bold = true)
+        val title = label(c, if (forStrip) "Unlock Quick panel over other apps" else if (forPanel) "Unlock the Quick panel" else "Unlock gradient colours", 20f, Color.WHITE, bold = true)
         title.gravity = Gravity.CENTER
         card.addView(title, margins(c, top = 22, side = 22))
 
-        val body = label(c, if (forPanel) "Watch one short ad and the Quick panel stays open for 12 hours, gradient colours included." else "Watch one short ad and every gradient colour of the Quick panel stays open for 12 hours. Solid colours are always free.", 15f, Color.argb(205, 255, 255, 255))
+        val body = label(c, if (forStrip) "Watch one short ad and the swipe-up Quick panel over other apps stays on for 6 hours." else if (forPanel) "Watch one short ad and the Quick panel stays open for 6 hours, gradient colours included." else "Watch one short ad and every gradient colour of the Quick panel stays open for 6 hours. Solid colours are always free.", 15f, Color.argb(205, 255, 255, 255))
         body.gravity = Gravity.CENTER
         body.setLineSpacing(c.dpf(3f), 1f)
         card.addView(body, margins(c, top = 10, side = 26))
@@ -94,12 +95,12 @@ object UnlockCard {
             HuaweiAds.showRewarded(
                 c,
                 onRewarded = {
-                    ThemeUnlock.grant(c)
+                    grant(c)
                     dialog.dismiss()
                     then()
                 },
                 onUnavailable = {
-                    ThemeUnlock.grant(c)
+                    grant(c)
                     val why = if (HuaweiAds.lastError.isEmpty()) "" else " (" + HuaweiAds.lastError + ")"
                     Toast.makeText(c, "No ad is available right now" + why + ". Gradients are unlocked.", Toast.LENGTH_LONG).show()
                     dialog.dismiss()

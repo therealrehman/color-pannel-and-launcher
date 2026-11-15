@@ -91,7 +91,15 @@ class HomeSettingsActivity : Activity() {
             view.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop, insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
             insets
         }
-        setContentView(holder, ViewGroup.LayoutParams(MATCH, MATCH))
+        val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        column.addView(holder, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        try {
+            HuaweiAds.init(this)
+            column.addView(HuaweiAds.createBanner(this), LinearLayout.LayoutParams(MATCH, WRAP))
+        } catch (e: Throwable) {
+            // no ad: the settings still work without the banner
+        }
+        setContentView(column, ViewGroup.LayoutParams(MATCH, MATCH))
         try {
             setDarkBarIcons(!Look.dark)
         } catch (e: Throwable) {
@@ -721,6 +729,9 @@ class HomeSettingsActivity : Activity() {
                     prefs().edit().putInt(PanelTheme.KEY, i).apply()
                     PanelTheme.load(this)
                     PanelTheme.syncWallpaper(this, i)
+                    val changes = prefs().getInt("ad_colour_changes", 0) + 1
+                    prefs().edit().putInt("ad_colour_changes", changes).apply()
+                    if (changes % 3 == 0) HuaweiAds.showInterstitial(this) { }
                 }
             },
             kit.chips("Wallpaper set on", listOf("Home", "Lock", "Both"), prefs().getInt(PanelTheme.KEY_WP_TARGET, 2)) { wpTarget = it; prefs().edit().putInt(PanelTheme.KEY_WP_TARGET, it).apply() },
@@ -798,8 +809,16 @@ class HomeSettingsActivity : Activity() {
         kit.card(
             box,
             kit.row(-1, 0, mark(chkMaster) + "Quick panel over other apps", if (chkMaster) "On" else "Off: tap to switch on") {
-                OverlayPanel.setWanted(this, true)
-                if (!OverlayPanel.canDraw(this)) askOverlay() else show()
+                if (!StripUnlock.isOpen(this)) {
+                    UnlockCard.show(this, PanelTheme.saved(this), then = {
+                        OverlayPanel.setWanted(this, true)
+                        if (!OverlayPanel.canDraw(this)) askOverlay() else show()
+                    }, onClosed = { if (!StripUnlock.isOpen(this)) show() }, forPanel = true,
+                       grant = { StripUnlock.grant(it) }, forStrip = true)
+                } else {
+                    OverlayPanel.setWanted(this, true)
+                    if (!OverlayPanel.canDraw(this)) askOverlay() else show()
+                }
             },
             kit.row(-1, 0, mark(chkDraw) + "Draw over other apps", if (chkDraw) "Allowed" else "Not allowed: tap to allow") { OverlayPanel.openPermissionScreen(this) },
             kit.row(-1, 0, mark(chkNotif) + "Notifications", if (chkNotif) "Allowed" else "Not allowed: tap to allow (the panel's notification keeps it alive)") {

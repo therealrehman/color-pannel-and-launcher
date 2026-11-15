@@ -26,6 +26,11 @@ object HuaweiAds {
     const val REWARDED_ID = "k2p31u2k9d"
     const val BANNER_ID = "w2x4afq04u"
 
+    /** Interstitial slot (release build). */
+    const val INTERSTITIAL_ID = "m3ax81z8fs"
+    /** Huawei's documented interstitial test slot (debug build). */
+    const val TEST_INTERSTITIAL_ID = "testb4znbuh3n2"
+
     /** Huawei's documented test slots (debug build). */
     const val TEST_REWARDED_ID = "testx9dtjwj8hp"
     const val TEST_BANNER_ID = "testw6vs28auh3"
@@ -131,7 +136,44 @@ object HuaweiAds {
         handler.post(poll)
     }
 
-    /** A banner ad view, ready to add to a layout. Not placed anywhere yet. */
+    /**
+     * A full-screen interstitial, shown only between two steps the person chose (never on the Home screen).
+     * [onDone] runs when it is closed, or at once when no ad could be shown.
+     */
+    fun showInterstitial(activity: Activity, onDone: () -> Unit) {
+        lastError = ""
+        init(activity)
+        val id = if (isDebugBuild(activity)) TEST_INTERSTITIAL_ID else INTERSTITIAL_ID
+        try {
+            val ad = com.huawei.hms.ads.InterstitialAd(activity)
+            ad.setAdId(id)
+            ad.setAdListener(object : com.huawei.hms.ads.AdListener() {
+                override fun onAdLoaded() {
+                    try {
+                        if (ad.isLoaded) ad.show() else onDone()
+                    } catch (e: Throwable) {
+                        lastError = "the interstitial could not be shown"
+                        onDone()
+                    }
+                }
+
+                override fun onAdFailed(errorCode: Int) {
+                    lastError = "Huawei sent no interstitial, error " + errorCode
+                    onDone()
+                }
+
+                override fun onAdClosed() {
+                    onDone()
+                }
+            })
+            ad.loadAd(AdParam.Builder().build())
+        } catch (e: Throwable) {
+            lastError = "Huawei Ads could not start (" + e.javaClass.simpleName + ")"
+            onDone()
+        }
+    }
+
+    /** A banner ad view, ready to add to a layout. */
     fun createBanner(context: Context): BannerView {
         init(context)
         return BannerView(context).apply {

@@ -4,17 +4,17 @@ import android.app.Activity
 import android.content.Context
 
 /**
- * Rewarded-ad lock for the gradient panel colours. One rewarded ad unlocks every gradient for 12 hours.
+ * Rewarded-ad lock for the gradient panel colours. One rewarded ad unlocks every gradient for 6 hours.
  * Solid colours and white glass are always free. If no ad can be shown, the gradients unlock anyway.
  * Step 84: the question is the [UnlockCard] (a real card), not a plain dialog.
  */
 object ThemeUnlock {
-    const val HOURS = 12L
+    const val HOURS = 6L
     private const val KEY_UNTIL = "theme_unlock_until"
 
     private fun prefs(c: Context) = c.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 
-    /** True while the 12-hour unlock is running. */
+    /** True while the 6-hour unlock is running. */
     fun isOpen(c: Context): Boolean = System.currentTimeMillis() < prefs(c).getLong(KEY_UNTIL, 0L)
 
     /** Whole hours left in the unlock (0 when it is not running). */
