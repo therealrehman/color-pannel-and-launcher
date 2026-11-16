@@ -37,6 +37,11 @@
     <!-- Android 11+ hides other apps unless declared. These let the launcher see every
          launchable app plus the default Phone / Messages / Browser / Camera / Settings. -->
     <queries>
+        <!-- Step 90: lets the launcher see which app the HOME button opens right now (Android 11+ can hide other launchers otherwise). -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
@@ -166,6 +171,14 @@
             android:excludeFromRecents="true"
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- First-run setup and the guide's links: the screen that turns on the Home app, the Quick panel, Accessibility, notifications and battery, one step at a time. -->
+        <activity
+            android:name=".SetupActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.OneUI.Setup" />
 
         <!-- Step 52: the "Quick panel" tile for the phone's Quick Settings. -->
         <service
@@ -303,6 +316,18 @@
                 android:resource="@xml/panel_accessibility" />
         </service>
 
+        <!-- Step 91: logs when an app that can take the HOME button is installed, updated, switched on or off or removed (package broadcasts only). -->
+        <receiver
+            android:name=".HomeEventReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.PACKAGE_REMOVED" />
+                <action android:name="android.intent.action.PACKAGE_CHANGED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -195,6 +195,17 @@ class PanelOverlayService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /**
+     * Step 90 (Home app): a quiet LOG only, every 30 s while this service runs. It writes a line when the HOME button changes hands.
+     * It never asks, shows anything or opens anything (store review, Step 86).
+     */
+    private val homeLog = object : Runnable {
+        override fun run() {
+            HomeKeeper.watch(this@PanelOverlayService)
+            uiHandler.postDelayed(this, 30_000L)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -206,6 +217,7 @@ class PanelOverlayService : Service() {
         }
         lastHidden = smartHidden()
         refreshHandle()
+        uiHandler.post(homeLog) // Step 90: quiet Home log every 30 s (see HomeKeeper.watch)
         refreshButton()
         updateProbe()
         updateShake()
@@ -247,6 +259,7 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             // not registered
         }
+        uiHandler.removeCallbacks(homeLog) // Step 90
         stopShake()
         removeProbe()
         removeHandle()

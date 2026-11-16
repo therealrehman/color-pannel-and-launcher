@@ -252,6 +252,7 @@ class LauncherActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Backup.reloadHome = false
+        if (!SetupActivity.isDone(this)) SetupActivity.open(this) // first run: the setup comes first
         HomeStore.loadConfig(this) // grid size, icon size, hidden apps (Step 9a); before any page is built
         // Step 9b: the Home screen turns with the phone only when Home settings say so.
         requestedOrientation = if (HomeStore.landscape) ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -335,6 +336,7 @@ class LauncherActivity : Activity() {
             return
         }
         defaultChip.visibility = if (isDefaultHome()) View.GONE else View.VISIBLE
+        HomeKeeper.watch(this) // Step 90: a quiet log line when the Home button changed hands (never asks)
         updateWallpaperOffset(pager.scrollFraction())
         if (IconTheme.refresh(this)) loadApps() // the wallpaper changed: the themed icons follow its colour
         val keyguard = getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
@@ -1908,17 +1910,9 @@ class LauncherActivity : Activity() {
 
     // ---------------------------------------------------------------- default home app
 
+    /** Step 90: the HOME button decides (HomeKeeper.isDefault), not only the Home role. */
     private fun isDefaultHome(): Boolean {
-        if (Build.VERSION.SDK_INT >= 29) {
-            val roles = getSystemService(RoleManager::class.java)
-            if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME)) {
-                return roles.isRoleHeld(RoleManager.ROLE_HOME)
-            }
-        }
-        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        val pkg = packageManager.resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)
-            ?.activityInfo?.packageName
-        return pkg == packageName
+        return HomeKeeper.isDefault(this)
     }
 
     private fun askToBeDefaultOnce() {
@@ -1929,18 +1923,10 @@ class LauncherActivity : Activity() {
         }
     }
 
+    /** Step 90: the same path as the Setup page and the Quick panel switch (HomeRoleActivity). */
     private fun requestDefaultHome() {
         try {
-            if (Build.VERSION.SDK_INT >= 29) {
-                val roles = getSystemService(RoleManager::class.java)
-                if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME) &&
-                    !roles.isRoleHeld(RoleManager.ROLE_HOME)
-                ) {
-                    startActivityForResult(roles.createRequestRoleIntent(RoleManager.ROLE_HOME), REQ_HOME_ROLE)
-                    return
-                }
-            }
-            startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
+            startActivity(Intent(this, HomeRoleActivity::class.java))
         } catch (e: Exception) {
             try {
                 startActivity(Intent(Settings.ACTION_SETTINGS))

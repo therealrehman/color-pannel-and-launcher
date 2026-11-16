@@ -1144,3 +1144,26 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - The panel closes on another app's window only when a real app screen (an Activity) comes to the front. Dialogs, toasts and permission prompts do not close it.
 - Version 1.1.10 (code 210).
 - Accessibility keep-alive: `AccessKeepService` (foreground, lowest importance) runs only while the Accessibility service is connected, so the phone's cleaner is less likely to stop it. The app itself never switches Accessibility off (no disableSelf, no writes to the Accessibility list).
+
+## Step 90 - Home app: the real check, a quiet log, the one-tap fix (step 1 of 2)
+- Symptom (1.1.12): after a restart the launcher shows; after an app is opened and Home is pressed, the phone's own launcher opens, while the Home ROLE still says "yes".
+- Cause in the code: `HomeKeeper.isDefault`, `LauncherActivity.isDefaultHome` and `HomeSettingsActivity.isDefaultHome` read only the Home ROLE. The HOME button can open another app while the role says "yes", so no chip, no hint and no log line appeared.
+- Also: the manifest `<queries>` had no MAIN + HOME intent. On Android 11+ another launcher can be hidden from the check.
+- Changed: `HomeKeeper.kt` (`isDefault` = what the HOME button opens; `holder`, `holderLabel`, `roleHeld`; the log line says which app opens and whether the role is ours); `HomeRoleActivity` (role already ours but the HOME button opens another app: a Toast says "pick the other app first, then this one", and the Home app page opens); `LauncherActivity.kt` (chip and the one-time question use `HomeKeeper.isDefault`; `requestDefaultHome` uses HomeRoleActivity; quiet log on resume); `HomeSettingsActivity.kt` ("Set as default" shows the real state; HomeRoleActivity when not default, Home app page when default; new row "Home app log", tap = copy); `OverlayPanel.kt` (quiet log every 30 s while the panel service runs); `KeepAlive.kt` (boot line always, 15-minute line only when the HOME button opens another app); `AndroidManifest.xml` (`<queries>` HOME intent); `build.gradle.kts` (1.1.13, code 213).
+- Not changed on purpose: no automatic notification or Home dialog (Step 86 review). A normal app can not set the Home app silently.
+- Research check: see STEP1_REPORT.md. The Step 84 "known causes" are user reports and were not verified here.
+- Package id: the code has com.oklabs.oneui9launcher (build.gradle, shortcuts.xml, KeepAlive.PKG). The Step 75 note above says com.arapks.glassylauncher, which does not match the code. Not changed; owner decision before the next store upload.
+- Not compiled here (no Android SDK in the sandbox). Not run on a phone.
+
+
+## Step 91 - Home app: final diagnostics and the user-side settings (step 2 of 2, final)
+- Read the screenshots of the other chat's investigation (12 images). Its finding that the manifest and the launcher activity are correct is confirmed (singleTask, clearTaskOnLaunch, stateNotNeeded).
+- Not changed on purpose: `directBootAware` (the launcher would run before the first unlock without its credential-encrypted data: crash risk); accessibility or overlay "bounce-back" (store policy; the Step 86 review rejected forced behaviour).
+- New: `HomeEventReceiver` (manifest, package broadcasts only): one log line when an app that can take the HOME button is installed, updated, switched on or off, or removed. Wrapped in try/catch (a locked phone must not crash it).
+- New: `HomeKeeper.lastExits()` (Android 11+): why Android or the phone maker last stopped this app's process. Shown when the HOME button changes hands and in the report.
+- New: `HomeKeeper.report()`: role, the app the HOME button opens, other Home candidates, last stops, phone model, Android version and the log. Settings > Home app log > tap = copy the whole report.
+- New: Settings row "Battery and auto-start" opens this app's Settings page (Battery and Auto-start are set there).
+- `hk_candidates` remembers Home candidates, so a removed one is still named in the log.
+- Version 1.1.14 (code 214).
+- Not changed on purpose: no notification or automatic dialog (Step 86); package id unchanged (com.oklabs.oneui9launcher); the Ui9 merge was not touched in this step.
+- Not compiled in the sandbox (no kotlinc or Android SDK); not run on a phone. Static checks done: brace balance, references, manifest entries.

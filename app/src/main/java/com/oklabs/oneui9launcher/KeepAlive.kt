@@ -147,9 +147,11 @@ class KeepAliveReceiver : BroadcastReceiver() {
             val action = intent?.action ?: return
             val boot = action == Intent.ACTION_BOOT_COMPLETED || action == "android.intent.action.QUICKBOOT_POWERON" || action == Intent.ACTION_MY_PACKAGE_REPLACED
             if (!boot && action != KeepAlive.ACTION_RESTART) return
-            // Home app: after a restart / an update / the 15-minute check, ask again when the phone put its own launcher back
+            // Home app (Step 90): a quiet log line after a restart / an update and every 15 minutes; it never asks again by itself
             // The log line proves the phone let this app start at boot (if it never appears after a restart, Auto-launch is blocked)
-            HomeKeeper.addLog(context, (if (boot) "boot / update received" else "15-minute check") + ", Home app: " + (if (HomeKeeper.isDefault(context)) "yes" else "NO, holder " + HomeKeeper.holder(context)))
+            val ours = HomeKeeper.isDefault(context)
+            if (boot || !ours) HomeKeeper.addLog(context, (if (boot) "boot / update received" else "15-minute check") + ", the Home button opens " + HomeKeeper.holderLabel(context) + (if (ours) " (this launcher)" else " (NOT this launcher)"))
+            HomeKeeper.watch(context) // Step 90: writes a line only when the Home button changed hands
             if (HomeKeeper.wanted(context)) KeepAlive.scheduleWatchdog(context)
             val panelOk = if (boot) KeepAlive.boot(context) else KeepAlive.restart(context)
             if (!panelOk) return

@@ -66,6 +66,7 @@ class HomeSettingsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!SetupActivity.isDone(this)) SetupActivity.open(this) // first run: the setup comes first
         try {
             setup()
         } catch (e: Throwable) {
@@ -359,10 +360,26 @@ class HomeSettingsActivity : Activity() {
         kit.card(
             box,
             if (isDefaultHome()) {
-                kit.row(SettingsTile.HOME, SettingsTile.GREEN, "Set as default", "This launcher is your Home app. Tap to open the phone's Home app settings") { requestDefaultHome() }
+                kit.row(SettingsTile.HOME, SettingsTile.GREEN, "Set as default", "This launcher is your Home app. Tap to open the phone's Home app settings") { openHomeSettings() }
             } else {
-                kit.row(SettingsTile.HOME, SettingsTile.ORANGE, "Set as default", "It is not your default Home app yet. Tap to set it") { requestDefaultHome() }
+                kit.row(SettingsTile.HOME, SettingsTile.ORANGE, "Set as default", "The Home button opens " + HomeKeeper.holderLabel(this) + " now. Tap to set this launcher again") { requestDefaultHome() }
             }
+        )
+
+        kit.card(
+            box,
+            kit.row(
+                SettingsTile.HOME, SettingsTile.SLATE, "Home app log",
+                HomeKeeper.log(this).lines().lastOrNull { it.isNotBlank() } ?: "No changes yet. Tap to copy the log"
+            ) { copyHomeLog() }
+        )
+
+        kit.card(
+            box,
+            kit.row(
+                SettingsTile.INFO, SettingsTile.SLATE, "Battery and auto-start",
+                "Set Battery to Unrestricted and Auto-start to On for Glassy. Menu names differ by phone."
+            ) { openAppDetails() }
         )
 
         kit.label(box, "Screens")
@@ -796,7 +813,7 @@ class HomeSettingsActivity : Activity() {
                 prefs().edit().putBoolean(PanelOverlayService.PREF_COVER_NAV, on).apply()
             },
             kit.row(-1, 0, "Show panel now", "Test the panel over this screen") {
-                if (!OverlayPanel.showNow()) toast("Switch on \"Quick panel over other apps\" and allow \"Draw over other apps\" first")
+                if (!OverlayPanel.showNow()) SetupActivity.open(this, SetupActivity.STEP_PANEL)
             }
         )
         kit.label(box, "Setup check")
@@ -1039,7 +1056,7 @@ class HomeSettingsActivity : Activity() {
                 prefs().edit().putBoolean(SystemPanel.PREF_LOOSE, on).apply()
             },
             kit.row(-1, 0, "Show panel now", "Test the panel over this screen") {
-                if (!SystemPanel.showNow()) toast("Switch on \"Open in every app\" and allow the Accessibility service first")
+                if (!SystemPanel.showNow()) SetupActivity.open(this, if (StoreBuild.noAccessibility(this)) SetupActivity.STEP_PANEL else SetupActivity.STEP_ACCESS)
             }
         )
         kit.note(
@@ -1596,42 +1613,61 @@ class HomeSettingsActivity : Activity() {
     // ------------------------------------------------------------------ How to use (Step 61)
 
     private fun guidePage(): View = kit.page("How to use", { goBack() }) { box ->
+        val accessOn = !StoreBuild.noAccessibility(this)
         fun part(title: String, vararg lines: String) {
             kit.label(box, title)
             kit.note(box, lines.joinToString("\n\n"))
         }
         part(
-            "1. First minutes",
-            "Settings > Set as default: make this launcher your Home app. Press Home once to see it.",
-            "Long-press an empty spot on the Home screen: Edit Home screen, Widgets, Wallpaper and Settings. Drag icons to move them, drop one on another to make a folder."
+            "Start here",
+            "Glassy Launcher is three things: your Home screen, a Quick panel you open from the top of any app, and an edge panel of your favourite apps. The setup takes about two minutes."
+        )
+        kit.card(box, kit.row(-1, 0, "Open the setup", "Each step opens the right phone screen") { SetupActivity.open(this) })
+
+        part(
+            "Open the Quick panel",
+            "The Quick panel holds buttons (Wi-Fi, torch, sound and more) and brightness and volume sliders, in one glass panel.",
+            "Swipe down on the thin strip under the status bar. It works over any app once the Quick panel is turned on.",
+            "You can also tap the floating button, shake the phone, or use the Quick Settings tile. Each one can be turned on in Settings > Quick panel."
+        )
+        kit.card(box, kit.row(-1, 0, "Turn on the Quick panel", "Opens its setup step") { SetupActivity.open(this, SetupActivity.STEP_PANEL) })
+
+        part(
+            "Edge panel: your favourite apps",
+            "A thin handle sits on the right edge of Home. Tap it, or drag it to the left, to see your favourite apps. Pick the apps and the colour in Settings > Edge panel."
         )
         part(
-            "2. Quick panel and Notifications",
-            "On the Home screen, swipe down: the Quick panel (buttons, brightness, volume, music) opens. Swipe left on it for the Notifications page, swipe right to come back. Swipe up (or press Back) to close.",
-            "Sliders: drag the finger along a slider to change brightness or volume. A sideways drag on a slider never switches the page. Tap Edit (the pencil) to move, add or remove buttons; Settings > Quick panel changes colours and icons.",
-            "The Notifications page needs Notification access (the app asks once)."
+            "Use the panel",
+            "Drag a finger along a slider to change brightness or volume. Tap Edit (the pencil) to move, add or remove buttons.",
+            "Swipe left for notifications, swipe right to come back. Swipe up, or press Back, to close."
         )
+        kit.card(box, kit.row(-1, 0, "Change the colours", "Settings > Quick panel > Colour") { go(QUICK) })
+
         part(
-            "3. The panel inside every app (no Accessibility)",
-            "Settings > Quick panel > Quick panel over other apps: switch on and allow Draw over other apps. Then open the panel from any app with: the Top handle (swipe down on the thin strip under the status bar), the Floating button, the Quick Settings tile (add it from the phone's own shade, pencil button), the notification, or the app icon's long-press shortcuts.",
-            "More triggers: double-tap and long-press on the handle, left / right half swipes, shake. Smart rules hide the handle in full-screen videos, with the keyboard, on the lock screen.",
-            "The phone's own status bar can not be replaced without Accessibility, so the panel is opened from the strip, not from the status bar. Cover the navigation bar (Settings > Quick panel) hides the phone's bottom buttons while the panel is open; swipe up from the bottom edge to bring them back."
+            "Brightness and auto-rotate",
+            "The first time you use them, Android asks for \"Modify system settings\". Allow it once."
         )
+        if (accessOn) {
+            part(
+                "Keep the panel switched on (Accessibility)",
+                "On some phones, Accessibility can switch itself off after another permission is allowed. If the panel stops working from the status bar, turn the service back on from the setup.",
+                "Fastest way: Settings > Accessibility > Accessibility shortcut, and choose Glassy Launcher if it is in the list. Then press both volume buttons together for 3 seconds to switch the service on or off. The steps look a little different on each phone."
+            )
+            kit.card(box, kit.row(-1, 0, "Open the Accessibility step", "Setup > Open the panel in every app") { SetupActivity.open(this, SetupActivity.STEP_ACCESS) })
+        }
+
         part(
-            "4. Panel colours and matching wallpapers",
-            "Settings > Quick panel > Colour: pick a panel colour (white glass, solid colours, gradients). Right under it: Wallpaper in this panel colour makes a wallpaper of the same colour, and Wallpaper follows the panel colour does it every time you pick a colour.",
-            "Settings > Wallpaper lists all gradients, the panel colours too. Choose Portrait / Landscape and where to set it (Home, Lock, Both)."
-        )
-        part(
-            "5. Widgets, folders, search",
-            "Long-press Home > Widgets: pick a widget, then drag to move and use the corner handles to resize. The built-in clock widget has gradient themes and fonts.",
-            "Swipe up on Home for all apps; the letters on the right jump to a letter. The search bar finds apps and the web."
-        )
-        part(
-            "6. If something does not work",
-            "Panel does not open over apps: check both switches (Quick panel over other apps, Draw over other apps).",
-            "Handle or button disappears after a while: Settings > Quick panel > Keep alive / Setup check shows the battery and protected-apps screens of your phone (Huawei, Vivo, Xiaomi...). Allow Auto-start and No restrictions for this app.",
+            "If something does not work",
+            "The panel does not open over apps: check \"Quick panel over other apps\" and \"Draw over other apps\" in the setup.",
+            "The strip or the button disappears after a while: allow Auto-start and No restrictions for the app, in the \"Keep it running\" step of the setup.",
             "Settings > Backup saves and restores your Home layout."
+        )
+        kit.card(box, kit.row(-1, 0, "Open the setup again", "Every step with its current state") { SetupActivity.open(this) })
+
+        part(
+            "Home screen, widgets and wallpaper",
+            "Long-press an empty spot on the Home screen to edit it, add widgets or change the wallpaper. Drag icons to move them, and drop one on another to make a folder.",
+            "Swipe up on Home for all apps. The search bar finds apps and the web."
         )
     }
 
@@ -1723,21 +1759,39 @@ class HomeSettingsActivity : Activity() {
 
     // ------------------------------------------------------------------ default Home app
 
+    /** Step 90: the HOME button decides (HomeKeeper.isDefault), not only the Home role. */
     private fun isDefaultHome(): Boolean {
-        if (Build.VERSION.SDK_INT >= 29) {
-            val roles = getSystemService(RoleManager::class.java)
-            if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME)) {
-                return roles.isRoleHeld(RoleManager.ROLE_HOME)
-            }
-        }
-        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        val pkg = packageManager.resolveActivity(home, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
-        return pkg == packageName
+        return HomeKeeper.isDefault(this)
     }
 
-    private fun requestDefaultHome() {
+    /** Step 91: copies the full Home report (role, the app the HOME button opens, other Home apps, last stops, the log). */
+    private fun copyHomeLog() {
+        getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Home report", HomeKeeper.report(this)))
+        toast("Home report copied. Paste it in the chat.")
+    }
+
+    /** Step 91: this app's own Settings page, where Battery and Auto-start are set. */
+    private fun openAppDetails() {
+        try {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+        } catch (e: Exception) {
+            toast("Could not open this app's settings on this phone")
+        }
+    }
+
+    /** Step 90: the phone's own Home app page (used when this launcher already is the Home app). */
+    private fun openHomeSettings() {
         try {
             startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
+        } catch (e: Exception) {
+            // no such screen on this phone
+        }
+    }
+
+    /** Step 90: the same path as the chip and the Setup page (HomeRoleActivity). */
+    private fun requestDefaultHome() {
+        try {
+            startActivity(Intent(this, HomeRoleActivity::class.java))
         } catch (e: Exception) {
             try {
                 startActivity(Intent(Settings.ACTION_SETTINGS))
