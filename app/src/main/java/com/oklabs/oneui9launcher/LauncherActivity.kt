@@ -329,7 +329,6 @@ class LauncherActivity : Activity() {
         super.onResume()
         noTransition()
         isForeground = true
-        StripUnlock.enforce(this) // 6-hour strip lock: switch off when the unlock has run out
         OverlayPanel.sync(this) // Step 50: the Quick panel over other apps stays ready while it is switched on
         if (Backup.reloadHome || HomeStore.configChanged(this)) { // Home settings changed something / a backup was restored: build the screen again
             recreate()

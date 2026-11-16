@@ -168,7 +168,16 @@ class CardActivity : Activity() {
         val index = intent.getIntExtra(EXTRA_INDEX, 1)
         if (intent.getBooleanExtra(EXTRA_PANEL, false)) {
             val notifs = intent.getBooleanExtra(EXTRA_NOTIFS, false)
-            UnlockCard.show(this, index, then = { PanelOverlayService.openPanel(this, notifs, intent.getIntExtra(EXTRA_SURFACE, PanelTheme.SURFACE_QUICK)) }, onClosed = { finish() }, forPanel = true)
+            // the swipe-up strip has its own 6-hour unlock (StripUnlock); the other Quick panel openings keep the gradient unlock
+            val strip = intent.getBooleanExtra(EXTRA_STRIP, false)
+            UnlockCard.show(
+                this, index,
+                then = { PanelOverlayService.openPanel(this, notifs, intent.getIntExtra(EXTRA_SURFACE, PanelTheme.SURFACE_QUICK)) },
+                onClosed = { finish() },
+                forPanel = true,
+                grant = { c: Context -> if (strip) StripUnlock.grant(c) else ThemeUnlock.grant(c) },
+                forStrip = strip
+            )
         } else {
             UnlockCard.show(this, index, then = {}, onClosed = { finish() })
         }
@@ -179,9 +188,10 @@ class CardActivity : Activity() {
         const val EXTRA_PANEL = "card_panel"
         const val EXTRA_NOTIFS = "card_notifs"
         const val EXTRA_SURFACE = "card_surface"
+        const val EXTRA_STRIP = "card_strip"
 
-        /** The unlock card for the Quick panel. After the reward the panel opens by itself ([notifs] = the notifications page). */
-        fun launchPanel(c: Context, index: Int, notifs: Boolean, surface: Int = PanelTheme.SURFACE_QUICK) {
+        /** The unlock card for the Quick panel. After the reward the panel opens by itself ([notifs] = the notifications page). [strip] = the swipe-up strip's own card. */
+        fun launchPanel(c: Context, index: Int, notifs: Boolean, surface: Int = PanelTheme.SURFACE_QUICK, strip: Boolean = false) {
             try {
                 c.startActivity(
                     Intent(c, CardActivity::class.java)
@@ -189,6 +199,7 @@ class CardActivity : Activity() {
                         .putExtra(EXTRA_PANEL, true)
                         .putExtra(EXTRA_NOTIFS, notifs)
                         .putExtra(EXTRA_SURFACE, surface)
+                        .putExtra(EXTRA_STRIP, strip)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
                 )
             } catch (e: Exception) {

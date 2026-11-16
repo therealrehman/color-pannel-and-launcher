@@ -3,9 +3,9 @@ package com.oklabs.oneui9launcher
 import android.content.Context
 
 /**
- * 6-hour rewarded lock for "Quick panel over other apps" (the swipe-up panel strip).
- * One rewarded ad turns the switch on for 6 hours. When the 6 hours end, the switch goes off again
- * (see [enforce]). Separate from the gradient unlock ([ThemeUnlock]).
+ * 6-hour rewarded lock for the swipe-up panel strip. The strip itself stays on screen (everywhere, Home included) while
+ * "Quick panel over other apps" is on. This lock only decides what a swipe on the strip does: it opens the Quick panel while
+ * the unlock runs, and otherwise shows the unlock card first. Separate from the gradient unlock ([ThemeUnlock]).
  */
 object StripUnlock {
     const val HOURS = 6L
@@ -19,10 +19,5 @@ object StripUnlock {
     /** Opens the strip for [HOURS] hours: after the rewarded ad, or when no ad could be shown. */
     fun grant(c: Context) {
         prefs(c).edit().putLong(KEY_UNTIL, System.currentTimeMillis() + HOURS * 60L * 60L * 1000L).apply()
-    }
-
-    /** When the unlock has run out, the switch goes off, so it has to be unlocked again. */
-    fun enforce(c: Context) {
-        if (OverlayPanel.wanted(c) && !isOpen(c)) OverlayPanel.setWanted(c, false)
     }
 }

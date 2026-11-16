@@ -372,13 +372,16 @@ class PanelOverlayService : Service() {
         }
     }
 
-    /** The strip opens the Quick panel only while the 12-hour rewarded unlock runs. Otherwise the unlock card comes first, and the panel opens after the reward. */
+    /**
+     * The strip is always there while it is on. A swipe on it opens the Quick panel only while the 6-hour rewarded strip unlock runs;
+     * otherwise the unlock card comes first, and the panel opens after the reward.
+     */
     private fun openFromStrip(startOnNotifs: Boolean) {
-        if (ThemeUnlock.isOpen(this)) {
+        if (StripUnlock.isOpen(this)) {
             showPanel(startOnNotifs, PanelTheme.SURFACE_STRIP)
             return
         }
-        CardActivity.launchPanel(this, PanelTheme.savedFor(this, PanelTheme.SURFACE_STRIP), startOnNotifs, PanelTheme.SURFACE_STRIP)
+        CardActivity.launchPanel(this, PanelTheme.savedFor(this, PanelTheme.SURFACE_STRIP), startOnNotifs, PanelTheme.SURFACE_STRIP, strip = true)
     }
 
     fun showPanel(startOnNotifs: Boolean = false, surface: Int = PanelTheme.SURFACE_QUICK) {
