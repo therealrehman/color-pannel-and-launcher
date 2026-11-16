@@ -152,6 +152,7 @@ class KeepAliveReceiver : BroadcastReceiver() {
             val ours = HomeKeeper.isDefault(context)
             if (boot || !ours) HomeKeeper.addLog(context, (if (boot) "boot / update received" else "15-minute check") + ", the Home button opens " + HomeKeeper.holderLabel(context) + (if (ours) " (this launcher)" else " (NOT this launcher)"))
             HomeKeeper.watch(context) // Step 90: writes a line only when the Home button changed hands
+            HomeKeeper.guard(context) // Step 92: if the phone dropped this launcher as Home, ask Android to set it again
             if (HomeKeeper.wanted(context)) KeepAlive.scheduleWatchdog(context)
             val panelOk = if (boot) KeepAlive.boot(context) else KeepAlive.restart(context)
             if (!panelOk) return
