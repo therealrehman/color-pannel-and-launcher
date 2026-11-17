@@ -94,7 +94,8 @@ class BadgeService : NotificationListenerService() {
 
     /** True while the person still has notification access for this app. */
     private fun accessOn(): Boolean {
-        val listed = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_NOTIFICATION_LISTENERS) ?: return false
+        // the name of the setting is written out: its constant is hidden in the public Android SDK (it does not compile otherwise)
+        val listed = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: return false
         return listed.split(":").any { it.substringBefore("/") == packageName }
     }
 
