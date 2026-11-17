@@ -25,22 +25,19 @@ import android.widget.Toast
  * Step 91: the log also records when another app that can take the HOME button is installed, updated, switched on or off or
  * removed (HomeEventReceiver), and why Android or the phone maker last stopped this app's process. A full text report can be copied.
  *
- * Step 92 (Home Guard): EMUI / Harmony phones sometimes drop the chosen Home app by themselves (after a restart, after the
- * cleaner runs, or for no clear reason) and the HOME button goes back to the phone's own launcher. The guard notices this and
- * opens Android's own "Set as Home app?" question again, so the person fixes it with one tap instead of digging through Settings.
- * It asks at most once every 5 minutes, only while the person wants this launcher as Home, and falls back to a notification when
- * the phone blocks a background dialog.
+ * Step 92b (Home Guard, calm version): when the HOME button stops opening this launcher, the guard opens Android's "Set as Home app?"
+ * question exactly ONCE per episode, then only keeps a quiet notification (tap it to ask again). It never pops the dialog repeatedly.
+ * The episode ends when the Home button opens this launcher again.
  */
 object HomeKeeper {
     const val PREF_ON = "hk_on"
     private const val PREF_LOG = "hk_log"
     private const val PREF_WAS = "hk_was_default"
     private const val PREF_CANDIDATES = "hk_candidates"
-    private const val PREF_GUARD_LAST = "hk_guard_last" // Step 92: last time the guard asked
+    private const val PREF_GUARD_ASKED = "hk_guard_asked" // Step 92b: the dialog was already shown for the current "lost" episode
     private const val NOTE_ID = 4712
     private const val CHAN_HOME = "home_guard"
     private const val LOG_LINES = 40
-    private const val GUARD_GAP_MS = 5 * 60 * 1000L // Step 92: never re-ask more often than this
 
     private fun prefs(c: Context) = c.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 
@@ -199,17 +196,26 @@ object HomeKeeper {
     }
 
     /**
-     * Step 92 (Home Guard): re-ask as soon as the HOME button stops opening this launcher. Called after a restart, an update and
-     * every 15-minute check (KeepAliveReceiver), so a phone that drops the Home app (EMUI, some cleaners) gets fixed with one tap.
-     * Never more often than every 5 minutes; shows a notification instead when the phone blocks the dialog.
+     * Step 92b: when the HOME button stops opening this launcher, ask Android ONCE (dialog), after that only a quiet notification.
+     * Called after a restart, an update and every 15-minute check. Never nags: one popup per episode is the maximum.
      */
     fun guard(c: Context) {
         try {
             if (!wanted(c)) return
-            if (isDefault(c)) return
-            val now = System.currentTimeMillis()
-            if (now - prefs(c).getLong(PREF_GUARD_LAST, 0L) < GUARD_GAP_MS) return
-            prefs(c).edit().putLong(PREF_GUARD_LAST, now).apply()
+            if (isDefault(c)) {
+                if (prefs(c).getBoolean(PREF_GUARD_ASKED, false)) {
+                    prefs(c).edit().putBoolean(PREF_GUARD_ASKED, false).apply()
+                    addLog(c, "the Home button opens this launcher again")
+                }
+                clearNote(c)
+                return
+            }
+            if (prefs(c).getBoolean(PREF_GUARD_ASKED, false)) {
+                // already asked once for this episode: quiet notification only
+                notifyLost(c)
+                return
+            }
+            prefs(c).edit().putBoolean(PREF_GUARD_ASKED, true).apply()
             addLog(c, "the Home button stopped opening this launcher; asking Android to set it again")
             var opened = false
             try {
@@ -224,7 +230,7 @@ object HomeKeeper {
         }
     }
 
-    /** Step 92: a quiet notification "tap to make this launcher the Home app again", used when the dialog can not open by itself. */
+    /** Step 92b: a quiet notification "tap to make this launcher the Home app again"; it never pops up by itself. */
     private fun notifyLost(c: Context) {
         try {
             val nm = c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -253,7 +259,7 @@ object HomeKeeper {
         }
     }
 
-    /** Clears the guard notification (called when the Home app is ours again). */
+    /** Clears the guard notification. */
     fun clearNote(c: Context) {
         try {
             (c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(NOTE_ID)
@@ -262,7 +268,7 @@ object HomeKeeper {
         }
     }
 
-    /** Kept for the old callers: it only clears an old notification. The launcher shows no Home notification by itself (Step 86). */
+    /** Kept for the old callers: it only clears an old notification. */
     fun check(c: Context, mayOpenDialog: Boolean) {
         clearNote(c)
     }
@@ -271,8 +277,8 @@ object HomeKeeper {
 /**
  * A see-through screen that makes this launcher the Home app. When the Home role is free it opens Android's own question. When the role
  * is already ours but the HOME button opens another app, only the Home app page can change that: a hint says to pick the other app first,
- * then this one. Started by the person (Set as default, Setup page, Quick panel switch) and by the Step 92 guard after the phone drops
- * the Home app by itself.
+ * then this one. Started by the person (Set as default, Setup page, Quick panel switch), by the Step 92b guard after the phone drops the
+ * Home app, or by tapping the guard notification.
  */
 class HomeRoleActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
