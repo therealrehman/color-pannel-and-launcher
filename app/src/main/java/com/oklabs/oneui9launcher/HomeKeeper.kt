@@ -196,8 +196,9 @@ object HomeKeeper {
     }
 
     /**
-     * Step 92b: when the HOME button stops opening this launcher, ask Android ONCE (dialog), after that only a quiet notification.
-     * Called after a restart, an update and every 15-minute check. Never nags: one popup per episode is the maximum.
+     * Called after a restart, an update and every 15-minute check. It never opens anything by itself: no Android dialog, no Home
+     * settings page, no popup. When the HOME button does not open this launcher, it writes one log line per episode and shows a quiet
+     * notification; only the person's tap on that notification starts [HomeRoleActivity].
      */
     fun guard(c: Context) {
         try {
@@ -210,21 +211,11 @@ object HomeKeeper {
                 clearNote(c)
                 return
             }
-            if (prefs(c).getBoolean(PREF_GUARD_ASKED, false)) {
-                // already asked once for this episode: quiet notification only
-                notifyLost(c)
-                return
+            if (!prefs(c).getBoolean(PREF_GUARD_ASKED, false)) {
+                prefs(c).edit().putBoolean(PREF_GUARD_ASKED, true).apply()
+                addLog(c, "the Home button now opens " + holderLabel(c) + "; quiet notification only, nothing is opened by itself")
             }
-            prefs(c).edit().putBoolean(PREF_GUARD_ASKED, true).apply()
-            addLog(c, "the Home button stopped opening this launcher; asking Android to set it again")
-            var opened = false
-            try {
-                c.startActivity(Intent(c, HomeRoleActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                opened = true
-            } catch (e: Exception) {
-                // the phone blocked the background start: the notification below still fixes it
-            }
-            if (!opened) notifyLost(c)
+            notifyLost(c)
         } catch (e: Exception) {
             // the guard must never end the receiver
         }
