@@ -1167,3 +1167,14 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Version 1.1.14 (code 214).
 - Not changed on purpose: no notification or automatic dialog (Step 86); package id unchanged (com.oklabs.oneui9launcher); the Ui9 merge was not touched in this step.
 - Not compiled in the sandbox (no kotlinc or Android SDK); not run on a phone. Static checks done: brace balance, references, manifest entries.
+
+## Step 93 - TEST build: Home activity also carries LAUNCHER (version 1.1.15, code 215)
+- Reason: the Galaxy launcher (com.launcher.galaxys20.ultra) is a third-party app, not a system app. Its Home activity has HOME + LAUNCHER + DEFAULT.
+  Ours had HOME + DEFAULT only. Galaxy also has no boot receiver, no overlay permission and no accessibility service in its manifest,
+  and its code never uses RoleManager for the HOME role.
+- Change (test only): LauncherActivity gets the LAUNCHER category and the label 'Glassy Home (test)'. Two icons will show (Home and Settings).
+  The Settings icon is unchanged. Manifest-only change.
+- Test: restart, open Chrome, press Home, 2-3 times. Send the Home app log (Settings > Home app log > Copy).
+- If Home stays: LAUNCHER was part of the cause; a final single-icon version comes next (needs moving the app-icon shortcuts).
+- If Home still goes to stock: LAUNCHER is not the cause; next tests are the role path and the background policy (autostart / battery).
+- Not compiled in the sandbox.

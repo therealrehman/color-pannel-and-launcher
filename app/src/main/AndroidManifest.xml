@@ -98,6 +98,7 @@
 
         <activity
             android:name=".LauncherActivity"
+            android:label="Glassy Home (test)"
             android:clearTaskOnLaunch="true"
             android:exported="true"
             android:launchMode="singleTask"
@@ -106,12 +107,12 @@
             android:stateNotNeeded="true"
             android:taskAffinity=""
             android:windowSoftInputMode="adjustResize|stateHidden">
-            <!-- The Home screen. Only HOME here: the app icon you tap (in any launcher) is the Settings activity below.
-                 Some phones hide an app whose Home activity also carries the LAUNCHER category. -->
+            <!-- TEST build: Galaxy-like Home (HOME + LAUNCHER). A second icon "Glassy Home (test)" is added only for this test. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
+                            <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
