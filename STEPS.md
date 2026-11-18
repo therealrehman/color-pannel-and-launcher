@@ -1178,3 +1178,11 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - If Home stays: LAUNCHER was part of the cause; a final single-icon version comes next (needs moving the app-icon shortcuts).
 - If Home still goes to stock: LAUNCHER is not the cause; next tests are the role path and the background policy (autostart / battery).
 - Not compiled in the sandbox.
+
+## Step 94 - the LAUNCHER test failed: reverted, and the Home report now shows what really happens (version 1.1.16, code 216)
+- Step 93 (Home activity also carries LAUNCHER) did NOT fix the problem: after a restart our launcher shows, but after opening Chrome and pressing Home the phone's own launcher opens. Reverted: the Home activity is HOME + DEFAULT only again, one app icon.
+- Galaxy launcher (com.launcher.galaxys20.ultra) compared again from its APK: minSdk 32 / targetSdk 36, largeHeap on, a DISABLED second HOME activity (FakeLauncher, the old "force the chooser" trick), no boot receiver, no overlay permission, no accessibility service, no RoleManager use in its code. The Home activity attributes (singleTask, clearTaskOnLaunch, stateNotNeeded, empty taskAffinity) match ours. Nothing in the manifest explains the difference, so the cause is runtime behaviour on the phone.
+- Our code was read for anything that could clear or replace the Home app: nothing disables components or clears the preferred Home; the Home role dialog and the Home settings page open only from a tap (chip, Settings row, Setup page, Quick panel switch) or once at the first install.
+- New (report only, no behaviour change): `HomeKeeper.trace` (last 16 events: Home screen resumed with process age, stopped, memory-trim levels); the report now also has navigation mode (gestures / buttons), ROM name, and the first lines of the crash note. Long-press on the "Set as default home app" chip copies the report.
+- How to read it: if the trace shows no "resumed" line when the phone's launcher appeared, the system never started our Home screen (phone policy). If it shows a "resumed" line with a large process age after a "stopped" line, the process was kept. A "first time since this process started" line with a small age after the stop means the process was killed and cold-started. A crash note means a crash.
+- Not compiled in the sandbox (no Android SDK); not run on a phone.

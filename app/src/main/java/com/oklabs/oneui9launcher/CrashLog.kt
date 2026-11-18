@@ -9,6 +9,11 @@ import java.io.StringWriter
 
 /** The app class: only installs [CrashLog]. */
 class App : Application() {
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        HomeKeeper.noteTrim(this, level) // Step 94: kept in the Home report
+    }
+
     override fun onCreate() {
         super.onCreate()
         CrashLog.install(this)

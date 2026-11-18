@@ -301,6 +301,7 @@ class LauncherActivity : Activity() {
 
     override fun onStop() {
         widgetHost.stopListening()
+        HomeKeeper.trace(this, "Home screen stopped (an app, the lock screen or screen off is in front)")
         // Step 35: the soft appearance is only for coming back from an app. After the screen went off (lock / unlock) there is none:
         // the system still shows the last picture of Home for a moment, and a fading, zooming second copy on top of it was the "double icons".
         val power = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
@@ -329,6 +330,7 @@ class LauncherActivity : Activity() {
         super.onResume()
         noTransition()
         isForeground = true
+        HomeKeeper.noteResume(this) // Step 94: the trace shows when the Home screen really came to the front
         OverlayPanel.sync(this) // Step 50: the Quick panel over other apps stays ready while it is switched on
         if (Backup.reloadHome || HomeStore.configChanged(this)) { // Home settings changed something / a backup was restored: build the screen again
             recreate()
@@ -600,6 +602,7 @@ class LauncherActivity : Activity() {
             background = roundRect(Color.argb(150, 0, 0, 0), dpf(20f))
             visibility = View.GONE
             setOnClickListener { requestDefaultHome() }
+            setOnLongClickListener { copyHomeReport(); true } // Step 94
         }
         homeLayer.addView(
             defaultChip,
@@ -1919,6 +1922,17 @@ class LauncherActivity : Activity() {
         if (!isDefaultHome() && !prefs.getBoolean("asked_default", false)) {
             prefs.edit().putBoolean("asked_default", true).apply()
             requestDefaultHome()
+        }
+    }
+
+    /** Step 94: long-press on the "Set as default home app" chip copies the Home report (what happened and why), to paste in a chat. */
+    private fun copyHomeReport() {
+        try {
+            getSystemService(android.content.ClipboardManager::class.java)
+                ?.setPrimaryClip(android.content.ClipData.newPlainText("Home report", HomeKeeper.report(this)))
+            Toast.makeText(this, "Home report copied. Paste it in the chat.", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            // no clipboard
         }
     }
 

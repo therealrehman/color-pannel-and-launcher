@@ -34,6 +34,12 @@ object HomeKeeper {
     private const val PREF_LOG = "hk_log"
     private const val PREF_WAS = "hk_was_default"
     private const val PREF_CANDIDATES = "hk_candidates"
+    private const val PREF_TRACE = "hk_trace"
+    private const val TRACE_LINES = 16
+
+    /** Step 94: true once this process has resumed the Home screen. */
+    @Volatile
+    private var resumedOnce = false
     private const val PREF_GUARD_ASKED = "hk_guard_asked" // Step 92b: the dialog was already shown for the current "lost" episode
     private const val NOTE_ID = 4712
     private const val CHAN_HOME = "home_guard"
@@ -114,6 +120,46 @@ object HomeKeeper {
         if (all != before) prefs(c).edit().putString(PREF_CANDIDATES, all.joinToString(",")).apply()
     }
 
+    /** Step 94: a short trace of what this launcher did (resumed, stopped, memory trims), newest last. It is part of the report. */
+    fun trace(c: Context, text: String) {
+        try {
+            val line = java.text.SimpleDateFormat("dd MMM HH:mm:ss", java.util.Locale.US).format(java.util.Date()) + "  " + text
+            val lines = ((prefs(c).getString(PREF_TRACE, "") ?: "").split("\n").filter { it.isNotBlank() } + line).takeLast(TRACE_LINES)
+            prefs(c).edit().putString(PREF_TRACE, lines.joinToString("\n")).apply()
+        } catch (e: Exception) {
+            // a trace line must never crash the launcher
+        }
+    }
+
+    /** Step 94: called when the Home screen is resumed. The first call after this process started also records the process age. */
+    fun noteResume(c: Context) {
+        val first = !resumedOnce
+        resumedOnce = true
+        if (first) {
+            val age = android.os.SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()
+            trace(c, "Home screen resumed, first time since this process started (process age " + age + " ms)")
+        } else {
+            trace(c, "Home screen resumed")
+        }
+    }
+
+    /** Step 94: called by the app class when Android asks this app to give memory back. */
+    fun noteTrim(c: Context, level: Int) {
+        if (level >= 10) trace(c, "Android asked this app for memory (trim level " + level + ")")
+    }
+
+    /** Step 94: the phone's navigation mode, for the report (gesture navigation behaves differently from buttons on some phones). */
+    private fun navigationText(c: Context): String = try {
+        when (Settings.Secure.getInt(c.contentResolver, "navigation_mode", -1)) {
+            0 -> "3 buttons"
+            1 -> "2 buttons"
+            2 -> "gestures"
+            else -> "unknown"
+        }
+    } catch (e: Exception) {
+        "unknown"
+    }
+
     private fun stamp(ms: Long): String =
         java.text.SimpleDateFormat("dd MMM HH:mm", java.util.Locale.US).format(java.util.Date(ms))
 
@@ -159,6 +205,10 @@ object HomeKeeper {
             append("The HOME button opens: ").append(holderLabel(c)).append('\n')
             append("Other apps that can take HOME: ").append(if (others.isEmpty()) "none" else others.joinToString(", ")).append('\n')
             append("This app's last stops: ").append(lastExits(c)).append('\n')
+            append("Navigation: ").append(navigationText(c)).append("   ROM: ").append(Build.BRAND).append(' ').append(Build.DISPLAY).append('\n')
+            val crash = CrashLog.read(c)
+            append("Crash note: ").append(if (crash == null) "none" else crash.lineSequence().filter { it.isNotBlank() }.drop(3).take(3).joinToString(" | ").take(300)).append('\n')
+            append("\nTrace (newest last):\n").append((prefs(c).getString(PREF_TRACE, "") ?: "").ifEmpty { "(empty)" }).append('\n')
             append("\nLog (newest last):\n").append(log(c).ifEmpty { "(empty)" }).append('\n')
         }
     }
