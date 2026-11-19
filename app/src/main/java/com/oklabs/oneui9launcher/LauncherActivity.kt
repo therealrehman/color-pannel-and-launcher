@@ -111,6 +111,7 @@ class LauncherActivity : Activity() {
     private var isForeground = false
 
     private val handler = Handler(Looper.getMainLooper())
+    private var splashAdShown = false
 
     /** What the drag layer needs from the home screen: pages, drops, the Apps screen. */
     private val dragHost = object : DragHost {
