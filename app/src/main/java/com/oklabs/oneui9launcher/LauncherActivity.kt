@@ -361,7 +361,17 @@ class LauncherActivity : Activity() {
         // Step 35: if the phone stopped the Quick panel service on its own, start it again (or say so); checked a moment after the launcher is up
         handler.removeCallbacks(keepService)
         handler.postDelayed(keepService, 2500L)
-    }
+    }// --- NEW: Show interstitial splash ad once per session ---
+        if (!splashAdShown) {
+            splashAdShown = true
+            handler.postDelayed({
+                if (!isDestroyed) {
+                    HuaweiAds.showInterstitial(this) {
+                        // Ad closed or unavailable, continue normally
+                    }
+                }
+            }, 1500L)
+        }
 
     private val keepService = Runnable {
         if (!isForeground) return@Runnable
