@@ -25,9 +25,11 @@ import android.widget.Toast
  * Step 91: the log also records when another app that can take the HOME button is installed, updated, switched on or off or
  * removed (HomeEventReceiver), and why Android or the phone maker last stopped this app's process. A full text report can be copied.
  *
- * Step 92b (Home Guard, calm version): when the HOME button stops opening this launcher, the guard opens Android's "Set as Home app?"
- * question exactly ONCE per episode, then only keeps a quiet notification (tap it to ask again). It never pops the dialog repeatedly.
- * The episode ends when the Home button opens this launcher again.
+ * Step 92b (Home Guard, calm version): when the HOME button stops opening this launcher, the guard keeps a quiet notification
+ * (tap it to ask again). It never pops the dialog repeatedly. The episode ends when the Home button opens this launcher again.
+ *
+ * Step 95: after a restart / an update, [restoreNow] tries to open the Home question by itself ONCE per lost episode
+ * (KeepAliveReceiver's quick checks). When the phone blocks background screen opens, the quiet notification is still the fallback.
  */
 object HomeKeeper {
     const val PREF_ON = "hk_on"
@@ -41,6 +43,7 @@ object HomeKeeper {
     @Volatile
     private var resumedOnce = false
     private const val PREF_GUARD_ASKED = "hk_guard_asked" // Step 92b: the dialog was already shown for the current "lost" episode
+    private const val PREF_RESTORE_TRIED = "hk_restore_tried" // Step 95: the self-open was already tried for the current "lost" episode
     private const val NOTE_ID = 4712
     private const val CHAN_HOME = "home_guard"
     private const val LOG_LINES = 40
@@ -246,9 +249,9 @@ object HomeKeeper {
     }
 
     /**
-     * Called after a restart, an update and every 15-minute check. It never opens anything by itself: no Android dialog, no Home
-     * settings page, no popup. When the HOME button does not open this launcher, it writes one log line per episode and shows a quiet
-     * notification; only the person's tap on that notification starts [HomeRoleActivity].
+     * Called after a restart, an update and every 15-minute check. When the HOME button does not open this launcher, it writes one log
+     * line per episode and shows a quiet notification; the person's tap on that notification starts [HomeRoleActivity].
+     * Step 95: the quick boot checks additionally call [restoreNow], which tries the self-open once per episode.
      */
     fun guard(c: Context) {
         try {
@@ -268,6 +271,32 @@ object HomeKeeper {
             notifyLost(c)
         } catch (e: Exception) {
             // the guard must never end the receiver
+        }
+    }
+
+    /**
+     * Step 95: once per "lost" episode, tries to open the Home question ([HomeRoleActivity]) by itself, after a restart / an update.
+     * Works when the phone lets this app open a screen from the background ("Draw over other apps" / a visible overlay window).
+     * When the phone blocks it, the quiet notification from [guard] is still there. When Home is ours again, the "tried" flag resets.
+     */
+    fun restoreNow(c: Context): Boolean {
+        try {
+            if (!wanted(c)) return false
+            if (isDefault(c)) {
+                prefs(c).edit().putBoolean(PREF_RESTORE_TRIED, false).apply()
+                return false
+            }
+            if (prefs(c).getBoolean(PREF_RESTORE_TRIED, false)) return false
+            val km = c.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+            val pw = c.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            if (km?.isKeyguardLocked == true || pw?.isInteractive == false) return false // locked: a later check tries again
+            prefs(c).edit().putBoolean(PREF_RESTORE_TRIED, true).apply()
+            c.startActivity(Intent(c, HomeRoleActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            addLog(c, "restore: tried to open the Home question by itself")
+            return true
+        } catch (e: Exception) {
+            addLog(c, "restore: the phone blocked the self-open; the notification stays")
+            return false
         }
     }
 
@@ -318,8 +347,8 @@ object HomeKeeper {
 /**
  * A see-through screen that makes this launcher the Home app. When the Home role is free it opens Android's own question. When the role
  * is already ours but the HOME button opens another app, only the Home app page can change that: a hint says to pick the other app first,
- * then this one. Started by the person (Set as default, Setup page, Quick panel switch), by the Step 92b guard after the phone drops the
- * Home app, or by tapping the guard notification.
+ * then this one. Started by the person (Set as default, Setup page, Quick panel switch), by the Step 95 restore after a restart / update,
+ * or by tapping the guard notification.
  */
 class HomeRoleActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
