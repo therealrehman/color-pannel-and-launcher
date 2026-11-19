@@ -1117,11 +1117,12 @@ class QuickPanel(
     }
 
     private fun chooseColour(i: Int) {
-        if (ThemeUnlock.blocks(context, i)) {
-            CardActivity.launch(context, i) // Step 84: the unlock card with the Watch-ad button (a service cannot show a dialog itself)
-            return
-        }
-        context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.keyFor(PanelTheme.surface), i).apply()
+    if (ThemeUnlock.blocks(context, i)) {
+        CardActivity.launch(context, i)
+        return
+    }
+    context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.keyFor(PanelTheme.surface), i).apply()
+    // ... baqi code
         PanelTheme.load(context)
         PanelTheme.syncWallpaper(context, i) // Step 62b
         scrim.background = PanelTheme.scrim(scrimA(205), PanelLook.dark)
