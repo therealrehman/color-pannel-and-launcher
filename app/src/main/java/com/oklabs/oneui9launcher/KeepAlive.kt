@@ -19,12 +19,16 @@ import android.provider.Settings
  * What the launcher can do by itself: start again after a reboot or an update, start again a few seconds after it was stopped / swiped away,
  * and check every ~15 minutes that it is running. What only the person can do: allow Auto-launch / "run in background" and leave battery
  * optimisation (the Setup check page shows these and opens the right screens).
+ *
+ * Step 95: after a reboot / an update, four quick Home checks (10s, 30s, 60s, 5min) run. When the phone dropped this launcher as Home,
+ * HomeKeeper.restoreNow tries to open the Home question by itself once per episode; the quiet notification stays as the fallback.
  */
 object KeepAlive {
     const val PREF_BOOT = "ka_boot" // start after the phone restarts
     const val PREF_RESTART = "ka_restart" // start again after the service is stopped + 15-minute check
 
     const val ACTION_RESTART = "com.oklabs.oneui9launcher.KEEPALIVE_RESTART"
+    const val ACTION_HOME_CHECK = "com.oklabs.oneui9launcher.HOME_CHECK" // Step 95: quick Home check after a restart / update
     const val PKG = "com.oklabs.oneui9launcher"
 
     private const val WATCHDOG_MS = 15 * 60 * 1000L
@@ -37,6 +41,12 @@ object KeepAlive {
     private fun pending(c: Context, code: Int): PendingIntent =
         PendingIntent.getBroadcast(
             c, code, Intent(c, KeepAliveReceiver::class.java).setAction(ACTION_RESTART), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+    /** Step 95: the alarm intent for one quick Home check (request codes 20..23). */
+    private fun homePending(c: Context, code: Int): PendingIntent =
+        PendingIntent.getBroadcast(
+            c, code, Intent(c, KeepAliveReceiver::class.java).setAction(ACTION_HOME_CHECK), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
     /** Asks the phone to start the service again in [delayMs] (an inexact alarm: no extra permission). */
@@ -61,11 +71,27 @@ object KeepAlive {
         }
     }
 
+    /** Step 95: quick Home checks after a restart / update: 10s, 30s, 60s, 5min. Cheap: each check exits fast when Home is ours. */
+    fun scheduleHomeChecks(c: Context) {
+        val am = c.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val delays = longArrayOf(10_000L, 30_000L, 60_000L, 300_000L)
+        for (i in delays.indices) {
+            try {
+                val at = SystemClock.elapsedRealtime() + delays[i]
+                if (Build.VERSION.SDK_INT >= 23) am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, homePending(c, 20 + i))
+                else am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, homePending(c, 20 + i))
+            } catch (e: Exception) {
+                // the phone refused this alarm: the later checks / the 15-minute watchdog still run
+            }
+        }
+    }
+
     fun cancelAlarms(c: Context) {
         try {
             val am = c.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             am.cancel(pending(c, 11))
             am.cancel(pending(c, 12))
+            for (code in 20..23) am.cancel(homePending(c, code)) // Step 95: the quick Home checks too
         } catch (e: Exception) {
             // nothing was scheduled
         }
@@ -145,14 +171,22 @@ class KeepAliveReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         try {
             val action = intent?.action ?: return
+            // Step 95: a quick Home check after a restart / update. When Home was dropped, try to bring the question back by itself.
+            if (action == KeepAlive.ACTION_HOME_CHECK) {
+                HomeKeeper.watch(context)
+                HomeKeeper.guard(context)      // clears the note when ours; quiet notification when lost
+                HomeKeeper.restoreNow(context) // resets "tried" when ours; opens the Home question once per episode when lost
+                return
+            }
             val boot = action == Intent.ACTION_BOOT_COMPLETED || action == "android.intent.action.QUICKBOOT_POWERON" || action == Intent.ACTION_MY_PACKAGE_REPLACED
             if (!boot && action != KeepAlive.ACTION_RESTART) return
-            // Home app (Step 90): a quiet log line after a restart / an update and every 15 minutes; it never asks again by itself
+            // Home app (Step 90): a quiet log line after a restart / an update and every 15 minutes
             // The log line proves the phone let this app start at boot (if it never appears after a restart, Auto-launch is blocked)
             val ours = HomeKeeper.isDefault(context)
             if (boot || !ours) HomeKeeper.addLog(context, (if (boot) "boot / update received" else "15-minute check") + ", the Home button opens " + HomeKeeper.holderLabel(context) + (if (ours) " (this launcher)" else " (NOT this launcher)"))
             HomeKeeper.watch(context) // Step 90: writes a line only when the Home button changed hands
-            HomeKeeper.guard(context) // Step 92: if the phone dropped this launcher as Home, ask Android to set it again
+            HomeKeeper.guard(context) // Step 92: if the phone dropped this launcher as Home, keep the quiet notification ready
+            if (boot) KeepAlive.scheduleHomeChecks(context) // Step 95: the ROM can drop Home a few seconds AFTER boot too
             if (HomeKeeper.wanted(context)) KeepAlive.scheduleWatchdog(context)
             val panelOk = if (boot) KeepAlive.boot(context) else KeepAlive.restart(context)
             if (!panelOk) return
