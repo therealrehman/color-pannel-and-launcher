@@ -7,6 +7,8 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
@@ -17,14 +19,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 
-/**
- * Step 84: the gradient-unlock card. A real card instead of a plain dialog or a toast: the colour that was tapped runs across the top with a
- * sparkle in its middle, then the title, the reason, and two buttons. "Watch ad" shows one rewarded ad (Huawei Ads, through [HuaweiAds]);
- * when the ad is finished the gradients stay unlocked for 6 hours. When no ad can be shown (no HMS Core, no fill) they unlock anyway.
- */
 object UnlockCard {
 
-    /** Shows the card for panel colour number [index]. [then] runs after the gradients are unlocked; [onClosed] when the card goes away. */
     fun show(activity: Activity, index: Int, then: () -> Unit, onClosed: () -> Unit = {}, forPanel: Boolean = false,
              grant: (Context) -> Unit = { ThemeUnlock.grant(it) }, forStrip: Boolean = false) {
         if (activity.isFinishing) return
@@ -47,7 +43,6 @@ object UnlockCard {
         card.elevation = c.dpf(18f)
         card.clipToOutline = true
 
-        // The top band: the colour itself, with a soft sparkle in the middle.
         val top = FrameLayout(c)
         top.background = GradientDrawable(GradientDrawable.Orientation.TL_BR, band).apply {
             val r = c.dpf(28f)
@@ -100,11 +95,22 @@ object UnlockCard {
                     then()
                 },
                 onUnavailable = {
-                    grant(c)
-                    val why = if (HuaweiAds.lastError.isEmpty()) "" else " (" + HuaweiAds.lastError + ")"
-                    Toast.makeText(c, "No ad is available right now" + why + ". Gradients are unlocked.", Toast.LENGTH_LONG).show()
-                    dialog.dismiss()
-                    then()
+                    // --- NEW: Internet Connectivity Check ---
+                    val cm = c.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                    val isConnected = cm?.activeNetwork?.let { 
+                        cm.getNetworkCapabilities(it)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) 
+                    } == true
+
+                    if (!isConnected) {
+                        Toast.makeText(c, "No internet connection. Please connect to unlock.", Toast.LENGTH_SHORT).show()
+                        dialog.dismiss()
+                    } else {
+                        grant(c)
+                        val why = if (HuaweiAds.lastError.isEmpty()) "" else " (" + HuaweiAds.lastError + ")"
+                        Toast.makeText(c, "No ad is available right now" + why + ". Unlocked.", Toast.LENGTH_LONG).show()
+                        dialog.dismiss()
+                        then()
+                    }
                 }
             )
         }
@@ -158,17 +164,12 @@ object UnlockCard {
     }
 }
 
-/**
- * Step 84: the same card for places that have no screen of their own - the Quick panel (an overlay service cannot show a dialog) opens it
- * through this see-through activity.
- */
 class CardActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val index = intent.getIntExtra(EXTRA_INDEX, 1)
         if (intent.getBooleanExtra(EXTRA_PANEL, false)) {
             val notifs = intent.getBooleanExtra(EXTRA_NOTIFS, false)
-            // the swipe-up strip has its own 6-hour unlock (StripUnlock); the other Quick panel openings keep the gradient unlock
             val strip = intent.getBooleanExtra(EXTRA_STRIP, false)
             UnlockCard.show(
                 this, index,
@@ -190,7 +191,6 @@ class CardActivity : Activity() {
         const val EXTRA_SURFACE = "card_surface"
         const val EXTRA_STRIP = "card_strip"
 
-        /** The unlock card for the Quick panel. After the reward the panel opens by itself ([notifs] = the notifications page). [strip] = the swipe-up strip's own card. */
         fun launchPanel(c: Context, index: Int, notifs: Boolean, surface: Int = PanelTheme.SURFACE_QUICK, strip: Boolean = false) {
             try {
                 c.startActivity(
@@ -202,9 +202,7 @@ class CardActivity : Activity() {
                         .putExtra(EXTRA_STRIP, strip)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
                 )
-            } catch (e: Exception) {
-                // no screen to show it on
-            }
+            } catch (e: Exception) { }
         }
 
         fun launch(c: Context, index: Int) {
@@ -214,9 +212,7 @@ class CardActivity : Activity() {
                         .putExtra(EXTRA_INDEX, index)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
                 )
-            } catch (e: Exception) {
-                // no screen to show it on
-            }
+            } catch (e: Exception) { }
         }
     }
 }
