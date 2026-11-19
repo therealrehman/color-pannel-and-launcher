@@ -1118,18 +1118,17 @@ class QuickPanel(
 
     private fun chooseColour(i: Int) {
     if (ThemeUnlock.blocks(context, i)) {
+        close(false) // Quick panel ko pehle band karein taake unlock card foran nazar aaye
         CardActivity.launch(context, i)
         return
     }
     context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.keyFor(PanelTheme.surface), i).apply()
-    // ... baqi code
-        PanelTheme.load(context)
-        PanelTheme.syncWallpaper(context, i) // Step 62b
-        scrim.background = PanelTheme.scrim(scrimA(205), PanelLook.dark)
-        // Step 70: the sheet itself is coloured by `body`, which only applyStyle set, so a new colour showed on the buttons but not on the sheet until the next open
-        if (sheetMode) body.background = PanelTheme.scrim(240, PanelLook.dark)
-        build() // every glass of the panel is drawn again in the new colour
-    }
+    PanelTheme.load(context)
+    PanelTheme.syncWallpaper(context, i)
+    scrim.background = PanelTheme.scrim(scrimA(205), PanelLook.dark)
+    if (sheetMode) body.background = PanelTheme.scrim(240, PanelLook.dark)
+    build()
+}
 
     // ------------------------------------------------------------------ Step 38: edit look (like the reference phone)
 
